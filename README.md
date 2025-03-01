@@ -1,5 +1,7 @@
 # HTML Universal Speed Controller
 
+This is git repository for Firefox Extension HTML Universal Speed Control (open source) browser extension that allows users to control the playback speed of web content. I specifically created this for those shady Ad websites, that add timers to get links. This is inspired from HTML5 Universal Speed Hack extension in Chrome Webstore.
+
 A powerful Firefox extension that gives you complete control over web content playback speeds. Originally inspired by HTML5 Universal Speed Hack, this extension goes beyond just video playback, allowing you to control the speed of any time-based web content.
 
 ## Features
