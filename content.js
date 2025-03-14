@@ -7,6 +7,7 @@ function pageScript() {
     performance: true,
     dateNow: true,
     requestAnimationFrame: false,
+    autoClickClose: false,
     isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
   };
 
@@ -112,6 +113,14 @@ function pageScript() {
 
   // Set functions with optimized performance
   window.setInterval = (handler, timeout = 0, ...args) => {
+    // Special handling for Google Ads timers
+    if (window.googletag && window.googletag.cmd) {
+      const stack = new Error().stack;
+      if (stack && stack.includes('googletag')) {
+        return originalSetInterval(handler, timeout / speedConfig.speed, ...args);
+      }
+    }
+
     if (speedConfig.speed === 0) {
       return originalSetInterval(handler, timeout, ...args);
     }
@@ -284,6 +293,77 @@ function pageScript() {
     window.requestAnimationFrame = newRequestAnimationFrame;
   })();
 
+  // Auto-click close buttons
+  function setupAutoClick() {
+    if (!speedConfig.autoClickClose) return;
+
+    // Create a MutationObserver to watch for new close buttons
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            const closeButtons = node.querySelectorAll('.close-btn');
+            closeButtons.forEach(button => {
+              if (button && !button.dataset.autoClicked) {
+                button.dataset.autoClicked = 'true';
+                // Add a small delay to ensure the button is fully loaded
+                setTimeout(() => {
+                  if (button && button.offsetParent !== null) {
+                    button.click();
+                  }
+                }, 100);
+              }
+            });
+          }
+        });
+      });
+    });
+
+    // Only start observing after the page is loaded
+    if (document.readyState === 'complete') {
+      // Start observing the document with the configured parameters
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+
+      // Also check for existing close buttons
+      document.querySelectorAll('.close-btn').forEach(button => {
+        if (button && !button.dataset.autoClicked) {
+          button.dataset.autoClicked = 'true';
+          setTimeout(() => {
+            if (button && button.offsetParent !== null) {
+              button.click();
+            }
+          }, 100);
+        }
+      });
+    } else {
+      // Wait for page load if not already loaded
+      window.addEventListener('load', () => {
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+
+        document.querySelectorAll('.close-btn').forEach(button => {
+          if (button && !button.dataset.autoClicked) {
+            button.dataset.autoClicked = 'true';
+            setTimeout(() => {
+              if (button && button.offsetParent !== null) {
+                button.click();
+              }
+            }, 100);
+          }
+        });
+      });
+    }
+
+    return observer;
+  }
+
+  let autoClickObserver = null;
+
   // Message handling for config updates
   window.addEventListener("message", (e) => {
     if (e.data.action === "updateSettings") {
@@ -293,6 +373,16 @@ function pageScript() {
         isMobile // Keep mobile status
       };
       reloadTimers();
+
+      // Handle auto-click toggle
+      if (speedConfig.autoClickClose) {
+        if (!autoClickObserver) {
+          autoClickObserver = setupAutoClick();
+        }
+      } else if (autoClickObserver) {
+        autoClickObserver.disconnect();
+        autoClickObserver = null;
+      }
     }
   });
 }

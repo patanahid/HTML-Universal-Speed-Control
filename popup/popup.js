@@ -4,10 +4,26 @@ const autoTriggerBtn = document.querySelector('.auto-trigger-btn');
 const autoStatus = autoTriggerBtn.querySelector('.auto-status');
 const autoSpeed = autoTriggerBtn.querySelector('.auto-speed');
 const statusHint = document.querySelector('.status-hint');
+const autoClickToggle = document.getElementById('autoClickToggle');
 
 let isAutoSpeedActive = false;
 let currentAutoSpeed = null;
 let currentDomain = null;
+
+// Add toggle change handler
+autoClickToggle.addEventListener('change', async () => {
+  const settings = await browser.storage.local.get();
+  settings.autoClickClose = autoClickToggle.checked;
+  await browser.storage.local.set(settings);
+  
+  // Send update to content script
+  const [currentTab] = await browser.tabs.query({ active: true, currentWindow: true });
+  await browser.tabs.sendMessage(currentTab.id, {
+    action: 'updateSettings',
+    settings: settings,
+    isAutoSpeed: false
+  });
+});
 
 // Listen for auto-speed status updates
 browser.runtime.onMessage.addListener((message) => {
@@ -117,6 +133,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     performance: true,
     dateNow: true,
     requestAnimationFrame: false,
+    autoClickClose: false,
     speedSteps: [2, 5, 10, 20, 50],
     autoSpeedSites: {},
     developerSettings: {
@@ -200,6 +217,7 @@ async function handleSpeedButtonClick() {
     performance: performanceToggle.checked,
     dateNow: dateNowToggle.checked,
     requestAnimationFrame: requestAnimationFrameToggle.checked,
+    autoClickClose: autoClickToggle.checked,
     // Include developer settings
     tickRate: developerSettings.tickRate || 60,
     useHighPrecisionTimer: developerSettings.useHighPrecisionTimer || false,
@@ -277,6 +295,7 @@ const handleAutoTrigger = async (e) => {
     performance: performanceToggle.checked,
     dateNow: dateNowToggle.checked,
     requestAnimationFrame: requestAnimationFrameToggle.checked,
+    autoClickClose: autoClickToggle.checked,
     tickRate: developerSettings.tickRate || 60,
     useHighPrecisionTimer: developerSettings.useHighPrecisionTimer || false,
     useLegacyMode: developerSettings.useLegacyMode || false,
@@ -368,6 +387,7 @@ toggles.forEach(toggle => {
       performance: performanceToggle.checked,
       dateNow: dateNowToggle.checked,
       requestAnimationFrame: requestAnimationFrameToggle.checked,
+      autoClickClose: autoClickToggle.checked,
       // Include developer settings
       tickRate: developerSettings.tickRate || 60,
       useHighPrecisionTimer: developerSettings.useHighPrecisionTimer || false,
