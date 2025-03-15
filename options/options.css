@@ -1,10 +1,27 @@
 body {
   margin: 0;
   padding: 20px;
-  background-color: #1e1e1e;
+  background-color: #080808;
   color: #ffffff;
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   -webkit-tap-highlight-color: transparent;
+}
+
+
+.speed-steps-list button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #313131;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 8px;
+  aspect-ratio: 1/1;
+  border: 2px solid #404040;
+  border-radius: 5px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
 }
 
 /* Mobile styles */
@@ -29,14 +46,15 @@ body {
   /* Adjust spacing for touch */
   .speed-steps-list,
   .preset-buttons-list {
-    gap: 12px;
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
   }
 
   /* Improve preset buttons layout on mobile */
   .preset-buttons {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 12px;
+    display: flex;
+    aspect-ratio: unset;
   }
 
   .preset-buttons button {
@@ -48,56 +66,45 @@ body {
 
   /* Make edit controls more touch-friendly */
   .preset-button-item .edit-controls {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 300px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    padding: 15px;
-    z-index: 1000;
+    flex-direction: column;
+    gap: 8px;
   }
 
   .preset-button-item .edit-inputs {
     flex-direction: column;
+    width: 100%;
   }
 
   .preset-button-item .edit-inputs input {
-    min-height: 44px;
+    width: 100%;
+    margin-bottom: 8px;
   }
 
-  /* Enhance textarea experience */
   textarea {
-    min-height: 120px;
     font-size: 16px;
     padding: 12px;
-    line-height: 1.6;
   }
 
-  /* Improve description readability */
+  /* Improve readability on mobile */
   .description {
-    font-size: 15px;
-    line-height: 1.6;
-    padding: 16px;
+    font-size: 14px;
+    line-height: 1.4;
   }
 
-  /* Prevent text selection */
+  /* Prevent zoom on input focus */
   * {
-    user-select: none;
-    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
-  /* Allow text selection in inputs */
-  input, textarea {
-    user-select: text;
-    -webkit-user-select: text;
+  /* Increase font size for inputs to prevent zoom */
+  input,
+  textarea {
+    font-size: 16px;
   }
 
-  /* Enhance button feedback */
+  /* Improve touch feedback */
   button:active {
-    transform: scale(0.95);
-    transition: transform 0.1s;
+    transform: scale(0.98);
   }
 }
 
@@ -106,123 +113,140 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 20px;
 }
 
 .section {
-  background-color: #2d2d2d;
+  background-color: #1a1a1a;
+  border-radius: 10px;
   padding: 20px;
-  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
-h2, h3 {
-  margin: 0;
-  color: #4CAF50;
+h2,
+h3 {
+  color: #9e85c3;
+  margin-top: 0;
 }
 
 h2 {
-  margin-bottom: 15px;
+  font-size: 1.5rem;
+  margin-bottom: 20px;
 }
 
 h3 {
-  margin-bottom: 10px;
+  font-size: 1.2rem;
+  margin-bottom: 15px;
 }
 
-/* Speed Steps Styling */
-.speed-steps, .preset-config {
+.speed-steps,
+.preset-config {
   display: flex;
   flex-direction: column;
   gap: 15px;
 }
 
-.speed-steps-list, .preset-buttons-list {
+.speed-steps-list,
+.preset-buttons-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
   gap: 10px;
 }
 
-.speed-step, .preset-button-item {
+.speed-step,
+.preset-button-item {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  background-color: #363636;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid #404040;
+  background-color: #2d2d2d;
+  gap: 2px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.speed-step {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #2d2d2d;
+  gap: 5px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+
+button[data-speed]:hover {
+  background-color: #484848;
 }
 
 .preset-button-item {
-  position: relative;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .preset-button-item .edit-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  gap: 10px;
   display: none;
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background-color: #363636;
-  padding: 8px;
-  border-radius: 4px;
-  margin-top: 4px;
-  z-index: 10;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .preset-button-item.editing .edit-controls {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .preset-button-item .edit-inputs {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  flex: 1;
 }
 
 .preset-button-item .edit-inputs input {
   flex: 1;
-  padding: 4px 8px;
-  background-color: #1e1e1e;
+  padding: 8px;
   border: 1px solid #404040;
+  border-radius: 5px;
+  background-color: #333;
   color: white;
-  border-radius: 4px;
 }
 
 .preset-button-item .edit-actions {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .preset-button-item .edit-actions button {
-  flex: 1;
-  padding: 4px 8px;
+  padding: 8px 12px;
 }
 
-.speed-step span, .preset-button-item span {
-  font-size: 16px;
+.speed-step span,
+.preset-button-item span {
   font-weight: bold;
-  color: #4CAF50;
+  color: #ffffff;
 }
 
 .preset-button-item .button-actions {
   display: flex;
-  gap: 4px;
+  gap: 10px;
+  margin-top: 5px;
 }
 
 .preset-button-item button {
-  background: none;
+  background-color: transparent;
   border: none;
+  color: #9e85c3;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 5px;
+  font-size: 0.9rem;
+  transition: all 0.2s;
 }
 
 .preset-button-item .edit-btn {
-  color: #2196F3;
+  color: #9e85c3;
 }
 
 .preset-button-item .delete-btn {
@@ -230,163 +254,177 @@ h3 {
 }
 
 .preset-button-item button:hover {
-  background-color: #ffffff20;
+  opacity: 0.8;
 }
 
-.speed-step-controls, .preset-button-controls {
+.speed-step-controls,
+.preset-button-controls {
   display: flex;
-  flex-direction: column;
   gap: 10px;
+  align-items: center;
 }
 
 .preset-input-group {
   display: flex;
   gap: 10px;
+  margin-bottom: 15px;
 }
 
 .preset-input-group input {
   flex: 1;
-  padding: 8px;
-  border-radius: 4px;
-  background-color: #1e1e1e;
-  color: #ffffff;
+  padding: 10px;
   border: 1px solid #404040;
-  font-size: 14px;
+  border-radius: 5px;
+  background-color: #333;
+  color: white;
+  font-size: 1rem;
 }
 
 input:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #9e85c3;
 }
 
-#addSpeedStep, #addPreset {
-  padding: 8px 16px;
-  background-color: #4CAF50;
+#addSpeedStep,
+#addPreset {
+  background-color: #2d2d2d;
   color: white;
-  border: none;
-  border-radius: 4px;
+  border: 1px solid #404040;
+  border-radius: 5px;
+  padding: 10px 15px;
   cursor: pointer;
-  font-weight: bold;
+  transition: all 0.2s;
 }
 
-#addSpeedStep:hover, #addPreset:hover {
-  background-color: #45a049;
+#addSpeedStep:hover,
+#addPreset:hover {
+  background-color: #3d3d3d;
 }
 
-/* Website Settings Section */
 .description {
-  color: #cccccc;
-  line-height: 1.5;
-  background-color: #363636;
+  color: #aaa;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-bottom: 15px;
+  background-color: #2d2d2d;
   padding: 15px;
-  border-radius: 4px;
-  margin: 0 0 15px 0;
+  border-radius: 8px;
 }
 
 .textarea-container {
-  width: 100%;
+  margin-bottom: 20px;
 }
 
 textarea {
   width: 100%;
+  height: 150px;
   padding: 10px;
-  box-sizing: border-box;
-  border-radius: 4px;
-  background-color: #363636;
-  color: #ffffff;
   border: 1px solid #404040;
-  resize: vertical;
+  border-radius: 5px;
+  background-color: #333;
+  color: white;
   font-family: monospace;
-  line-height: 1.4;
-  font-size: 14px;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
 }
 
 textarea:focus {
   outline: none;
-  border-color: #4CAF50;
+  border-color: #9e85c3;
 }
 
 .speed-presets {
-  background-color: #363636;
-  padding: 15px;
-  border-radius: 4px;
-  margin: 15px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
 }
 
 .preset-controls {
   display: flex;
-  flex-direction: column;
   gap: 10px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
 }
 
 #domainInput {
-  padding: 8px;
-  border-radius: 4px;
-  background-color: #1e1e1e;
-  color: #ffffff;
+  flex: 1;
+  min-width: 180px;
+  max-width: 400px;
+  padding: 6px 10px;
   border: 1px solid #404040;
-  font-size: 14px;
+  border-radius: 5px;
+  background-color: #333;
+  color: white;
+  font-size: 1rem;
+  height: 36px;
+  box-sizing: border-box;
 }
 
 .preset-buttons {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
 }
 
 .preset-buttons button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  background-color: #4CAF50;
+  background-color: #2d2d2d;
   color: white;
+  border: 1px solid #404040;
+  border-radius: 5px;
+  padding: 6px 10px;
   cursor: pointer;
-  font-weight: bold;
   transition: all 0.2s;
+  font-size: 0.9rem;
+  text-align: center;
+  height: 36px;
+  box-sizing: border-box;
+  flex: 0 0 auto;
 }
 
 .preset-buttons button:hover {
-  background-color: #45a049;
+  background-color: #3d3d3d;
 }
 
 .preset-buttons button:active {
-  transform: scale(0.95);
+  transform: scale(0.98);
 }
 
 .buttons {
   display: flex;
-  gap: 10px;
-  margin-top: 15px;
+  gap: 15px;
+  margin-top: 20px;
 }
 
-#saveButton, #resetButton {
-  padding: 10px 20px;
+#saveButton,
+#resetButton {
+  padding: 12px 20px;
+  border-radius: 5px;
   border: none;
-  border-radius: 4px;
-  cursor: pointer;
+  color: white;
   font-weight: bold;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
 #saveButton {
+  background-color: #9e85c3;
   flex: 2;
-  background-color: #4CAF50;
-  color: white;
 }
 
 #resetButton {
+  background-color: #555;
   flex: 1;
-  background-color: #363636;
-  color: white;
-  border: 1px solid #404040;
 }
 
 #saveButton:hover {
-  background-color: #45a049;
+  background-color: #8a6db0;
 }
 
 #resetButton:hover {
-  background-color: #404040;
+  background-color: #666;
 }
 
 button:active {
@@ -394,49 +432,54 @@ button:active {
 }
 
 .status-message {
-  text-align: center;
-  padding: 10px;
-  border-radius: 4px;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  padding: 15px 25px;
+  border-radius: 5px;
+  color: white;
+  font-weight: bold;
+  transition: all 0.3s;
   opacity: 0;
-  transition: opacity 0.3s;
-  margin-top: 10px;
 }
 
 .status-message.show {
+  transform: translateX(-50%) translateY(0);
   opacity: 1;
 }
 
 .status-message.success {
-  background-color: #4CAF50;
-  color: white;
+  background-color: #4caf50;
+  box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
 }
 
 .status-message.error {
   background-color: #f44336;
-  color: white;
+  box-shadow: 0 2px 10px rgba(244, 67, 54, 0.3);
 }
 
-/* Developer Settings */
 .developer-settings {
-  background-color: #363636;
-  border-radius: 4px;
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  padding: 0;
+  margin-top: 20px;
   overflow: hidden;
-  margin-bottom: 20px;
 }
 
 .developer-settings summary {
-  padding: 15px;
-  cursor: pointer;
-  user-select: none;
+  padding: 15px 20px;
+  background-color: #2d2d2d;
+  color: #9e85c3;
   font-weight: bold;
-  color: #4CAF50;
-  display: flex;
-  align-items: center;
-  transition: background-color 0.2s;
+  cursor: pointer;
+  position: relative;
+  outline: none;
+  list-style: none;
 }
 
 .developer-settings summary:hover {
-  background-color: #404040;
+  background-color: #333;
 }
 
 .developer-settings summary::-webkit-details-marker {
@@ -444,10 +487,10 @@ button:active {
 }
 
 .developer-settings summary::before {
-  content: '▶';
-  margin-right: 10px;
-  font-size: 12px;
-  transition: transform 0.2s;
+  content: "▶";
+  position: absolute;
+  right: 20px;
+  transition: transform 0.3s;
 }
 
 .developer-settings[open] summary::before {
@@ -455,80 +498,91 @@ button:active {
 }
 
 .settings-group {
-  padding: 15px;
-  border-top: 1px solid #404040;
+  padding: 20px;
 }
 
 .setting-item {
+  display: flex;
+  flex-direction: column;
   margin-bottom: 15px;
-  padding: 10px;
-  background-color: #2d2d2d;
-  border-radius: 4px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #333;
 }
 
 .setting-item:last-child {
-  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .setting-item label {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 5px;
-  cursor: pointer;
+  margin-bottom: 8px;
+  font-weight: bold;
+  color: #ddd;
 }
 
-.setting-item input[type="number"] {
-  width: 80px;
-  padding: 5px;
-  background-color: #1e1e1e;
+.setting-item input[type="number"],
+#newSpeedStep {
+  width: 300px;
+  padding: 8px;
   border: 1px solid #404040;
+  border-radius: 5px;
+  background-color: #333;
   color: white;
-  border-radius: 4px;
 }
 
 .setting-item input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  cursor: pointer;
+  accent-color: #9e85c3;
 }
 
 .setting-item small {
-  display: block;
   color: #888;
-  margin-left: 28px;
-  font-size: 12px;
+  font-size: 0.85rem;
+  margin-top: 5px;
   line-height: 1.4;
+  display: block;
+  max-width: 600px;
 }
 
-/* Mobile styles for developer settings */
 @media (max-width: 600px) {
   .developer-settings summary {
-    padding: 20px 15px;
-  }
-
-  .setting-item {
     padding: 15px;
   }
 
+  .setting-item {
+    padding-bottom: 12px;
+  }
+
   .setting-item label {
-    font-size: 16px;
+    font-size: 0.95rem;
   }
 
   .setting-item input[type="number"] {
-    width: 100px;
-    height: 44px;
+    width: 80px;
     font-size: 16px;
-    padding: 8px;
   }
 
   .setting-item input[type="checkbox"] {
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
   }
 
   .setting-item small {
-    margin-left: 34px;
-    font-size: 14px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Override mobile height for non-mobile screens */
+@media (min-width: 601px) {
+
+  .speed-step,
+  .preset-button-item,
+  button,
+  input,
+  textarea {
+    min-height: unset;
   }
 }

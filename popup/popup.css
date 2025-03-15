@@ -2,10 +2,11 @@ body {
   width: 300px;
   margin: 0;
   padding: 15px;
-  background-color: #1e1e1e;
+  background-color: #080808;
   color: #ffffff;
-  font-family: Arial, sans-serif;
-  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  /* Remove tap highlight on mobile */
 }
 
 /* Mobile styles */
@@ -21,23 +22,24 @@ body {
   .speed-btn,
   .auto-trigger-btn,
   #optionsButton {
-    min-height: 44px; /* Minimum touch target size */
+    min-height: 44px;
+    /* Minimum touch target size */
     padding: 12px 16px;
   }
 
   /* Add spacing between buttons for better touch targets */
   .speed-buttons {
-    gap: 12px;
+    gap: 5px;
   }
 
   /* Make toggles easier to tap */
   .toggle-item {
-    padding: 3px 0;
+    padding: 5px 0;
   }
 
   input[type="checkbox"] {
-    width: 24px;
-    height: 24px;
+    width: 15px;
+    height: 15px;
   }
 }
 
@@ -59,18 +61,20 @@ body {
 h2 {
   margin: 0 0 10px 0;
   text-align: center;
-  color: #4CAF50;
+  color: #9e85c3;
 }
 
 .auto-speed-button {
-  margin-bottom: 15px;
+  margin-bottom: 10px;
+  border-radius: 10px;
 }
 
+
 .speed-status {
-  margin-top: 8px;
   padding: 8px;
+  width: 90%;
   background-color: #2d2d2d;
-  border-radius: 4px;
+  border-radius:0 0 10px 10px;
   font-size: 0.9em;
 }
 
@@ -90,11 +94,11 @@ h2 {
 }
 
 #currentSpeedStatus {
-  color: #4CAF50;
+  color: #9e85c3;
 }
 
 #savedSpeedStatus {
-  color: #FFA726;
+  color: #ffcd82;
 }
 
 .status-hint {
@@ -116,49 +120,79 @@ h2 {
   }
 }
 
+.speed-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background-color: #080808;
+  border-radius: 10px;
+  overflow: hidden;
+  gap: 0; /* Remove gap between buttons */
+}
+
+.speed-btn{
+  padding: 14px 10%;
+  border: 1px solid rgb(39, 39, 39);
+  background-color: #212121;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin: 0; /* Remove any margin */
+  border-radius: 0; /* Remove border radius from individual buttons */
+}
+
+.speed-btn:hover {
+  background-color: #292929;
+}
+
+.speed-btn.active {
+  background-color: #7f52c3;
+}
+
+.speed-btn.stop-btn {
+  background-color: #f44336;
+  padding: 14px 8px;
+  width: 100%;
+  grid-column: span 3;
+  margin: 0; /* Ensure no margin */
+  border-radius: 0 0 10px 10px; /* Only round bottom corners */
+}
+
+.speed-btn.stop-btn:hover {
+  background-color: #d32f2f;
+}
+
+
 .auto-trigger-btn {
   width: 100%;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
-  background-color: #2d2d2d;
   border: 1px solid #404040;
+  border-radius: 10px;
+
 }
 
 .auto-trigger-btn.active {
-  background-color: #4CAF50;
-  border-color: #4CAF50;
+  background-color: #9e85c3;
+  border-color: #c0c385;
 }
 
-.auto-trigger-btn.different-speed {
-  border: 2px solid #FFA726;
-  animation: pulse 2s infinite;
+.auto-trigger-btn.modified {
+  border: 2px solid #ffa600;
 }
 
-.auto-trigger-btn.different-speed .auto-speed {
-  color: #FFA726;
-  font-weight: bold;
-}
-
-@keyframes pulse {
-  0% {
-    box-shadow: 0 0 0 0 rgba(255, 167, 38, 0.4);
-  }
-  70% {
-    box-shadow: 0 0 0 6px rgba(255, 167, 38, 0);
-  }
-  100% {
-    box-shadow: 0 0 0 0 rgba(255, 167, 38, 0);
-  }
-}
 
 .auto-status {
   font-weight: bold;
+  color: rgb(255, 244, 230);
 }
 
 .auto-speed {
-  color: #c0c0c0;
+  padding: 8px 8px;
+  border-radius: 15px;
+  color: #ffffff;
+  background-color: rgb(62, 62, 62);
 }
 
 p {
@@ -167,76 +201,24 @@ p {
   margin: 0;
 }
 
-.speed-buttons {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.speed-btn {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 4px;
-  background-color: #2d2d2d;
-  color: white;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.2s;
-}
-
-.speed-btn:hover {
-  background-color: #404040;
-}
-
-.speed-btn.active {
-  background-color: #4CAF50;
-  position: relative;
-}
-
-.speed-btn.auto-active {
-  border: 2px solid #4CAF50;
-  background-color: #2d2d2d;
-  position: relative;
-}
-
-.speed-btn.auto-active::after {
-  content: '🔄';
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.speed-btn.active.auto-active {
-  background-color: #4CAF50;
-}
-
-.speed-btn.active.auto-active::after {
-  color: white;
-}
-
-.speed-btn.stop-btn {
-  background-color: #f44336;
-  grid-column: span 3;
-}
-
-.speed-btn.stop-btn:hover {
-  background-color: #d32f2f;
-}
 
 .toggles {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px;
-  background-color: #2d2d2d;
-  border-radius: 4px;
+  background-color: #1a1a1a;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .toggle-item {
   display: flex;
   align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #282828;
+}
+
+.toggle-item:last-child {
+  border: none;
 }
 
 .toggle-item label {
@@ -247,10 +229,10 @@ p {
 }
 
 input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   cursor: pointer;
-  accent-color: #4CAF50;
+  accent-color: #9e85c3;
 }
 
 .buttons {
@@ -262,11 +244,11 @@ input[type="checkbox"] {
   width: 100%;
   padding: 8px 16px;
   border: 1px solid #404040;
-  border-radius: 4px;
+  border-radius: 10px;
   background-color: #2d2d2d;
   color: white;
   cursor: pointer;
-  font-weight: bold;
+  font-weight: 500;
   transition: all 0.2s;
 }
 

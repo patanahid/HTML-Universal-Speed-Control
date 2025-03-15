@@ -110,6 +110,8 @@ const MOBILE_CONFIG = {
 - Notification system for speed changes
 - Manual override prevention
 
+*Click on the auto-speed button to add the current site and speed to the auto-triggering list*
+
 ### Behavior
 1. Site visit triggers speed check
 2. If site is in auto-speed list:
