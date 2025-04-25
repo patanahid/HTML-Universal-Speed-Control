@@ -1,5 +1,5 @@
 # HTML Universal Speed Controller
-
+[Firefox Add-on Store link](https://addons.mozilla.org/en-US/firefox/addon/universal-speed-control/)
 A powerful browser extension that allows you to control the speed of HTML websites by manipulating various timing methods. This extension provides fine-grained control over website timing functions and includes features like auto-speed for specific sites and mobile optimizations.
 
 ## Features
