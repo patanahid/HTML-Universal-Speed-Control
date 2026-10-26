@@ -1,4 +1,4 @@
-/* MAIN-world timing engine for HTML Universal Speed Controller.
+/* MAIN-world timing engine for Universal Speed Controller.
  *
  * Declared with "world": "MAIN" at document_start in manifest.json, so it runs
  * BEFORE any page script and is NOT affected by the page's CSP (Firefox 128+).
@@ -15,7 +15,7 @@
   window.__uscPageInstalled = true;
 
   /* Keep in sync with CHANNEL in shared/settings.js. */
-  var CHANNEL = 'html-universal-speed-controller/v3.2';
+  var CHANNEL = 'universal-speed-controller/v3.2';
   var MAX_DELAY = 2147483647; // largest value a WebIDL long timeout accepts
 
   var native = {

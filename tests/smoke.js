@@ -12,7 +12,7 @@ const vm = require('vm');
 const assert = require('assert');
 
 const ROOT = path.resolve(__dirname, '..');
-const CHANNEL = 'html-universal-speed-controller/v3.2';
+const CHANNEL = 'universal-speed-controller/v3.2';
 
 let passed = 0;
 function test(name, fn) {

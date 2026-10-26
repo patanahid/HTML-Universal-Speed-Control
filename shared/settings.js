@@ -35,7 +35,7 @@
   });
 
   /* Must stay in sync with CHANNEL in page/page.js. */
-  var CHANNEL = 'html-universal-speed-controller/v3.2';
+  var CHANNEL = 'universal-speed-controller/v3.2';
 
   var BOOLEAN_KEYS = [
     'setInterval', 'setTimeout', 'performance', 'dateNow',

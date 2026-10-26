@@ -1,4 +1,4 @@
-# HTML Universal Speed Controller
+# Universal Speed Controller
 
 [Firefox Add-on Store link](https://addons.mozilla.org/en-US/firefox/addon/universal-speed-control/)
 
@@ -146,7 +146,7 @@ npx web-ext build --source-dir . --artifacts-dir web-ext-artifacts
 The command above produces the unsigned archive you upload to AMO:
 
 ```
-web-ext-artifacts/html_universal_speed_controller-3.2.zip
+web-ext-artifacts/universal_speed_controller-3.2.zip
 ```
 
 1. Run `npx web-ext lint --source-dir .` first — it must report 0 errors and 0
@@ -156,7 +156,7 @@ web-ext-artifacts/html_universal_speed_controller-3.2.zip
 3. AMO validates and signs it, and gives you back the `.xpi` that users install.
 
 Upload the **unsigned** `web-ext build` zip, not one of the old
-`html_universal_speed_controller-3.1.zip` style archives. Signing directly with
+`universal_speed_controller-3.1.zip` style archives. Signing directly with
 `web-ext sign` is also possible but needs AMO API credentials.
 
 To run the dependency-free engine tests:

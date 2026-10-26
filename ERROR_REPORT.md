@@ -1,4 +1,4 @@
-# Error audit — HTML Universal Speed Controller (v3.1)
+# Error audit — Universal Speed Controller (v3.1)
 
 Audited on 2026-10-26 on branch `arena/ebdb8458-html-universal-speed-control` (HEAD `e935276`).
 

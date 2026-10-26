@@ -1,8 +1,8 @@
 {
   "manifest_version": 2,
-  "name": "HTML Universal Speed Controller",
+  "name": "Universal Speed Controller",
   "version": "3.2",
-  "description": "Control the speed of HTML websites with various timing methods",
+  "description": "Control the speed of websites with various timing methods",
   "browser_specific_settings": {
     "gecko": {
       "id": "speed-controller@example.com",
