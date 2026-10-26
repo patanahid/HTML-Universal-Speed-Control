@@ -6,50 +6,10 @@ body {
   color: #ffffff;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   -webkit-tap-highlight-color: transparent;
-  /* Remove tap highlight on mobile */
 }
 
-/* Mobile styles */
-@media (max-width: 600px) {
-  body {
-    width: 100%;
-    min-height: 100vh;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-
-  /* Increase touch targets for mobile */
-  .speed-btn,
-  .auto-trigger-btn,
-  #optionsButton {
-    min-height: 44px;
-    /* Minimum touch target size */
-    padding: 12px 16px;
-  }
-
-  /* Add spacing between buttons for better touch targets */
-  .speed-buttons {
-    gap: 5px;
-  }
-
-  /* Make toggles easier to tap */
-  .toggle-item {
-    padding: 5px 0;
-  }
-
-  input[type="checkbox"] {
-    width: 15px;
-    height: 15px;
-  }
-}
-
-/* Prevent text selection on mobile */
-.speed-btn,
-.auto-trigger-btn,
-#optionsButton,
-.toggle-item label {
-  user-select: none;
-  -webkit-user-select: none;
+* {
+  box-sizing: border-box;
 }
 
 .container {
@@ -58,10 +18,20 @@ body {
   gap: 15px;
 }
 
+.center {
+  text-align: center;
+}
+
 h2 {
   margin: 0 0 10px 0;
   text-align: center;
   color: #9e85c3;
+}
+
+/* Only bind "click" (not touchend) in JS; this removes the 300ms delay and
+   prevents double-firing on touch devices. */
+button {
+  touch-action: manipulation;
 }
 
 .auto-speed-button {
@@ -69,12 +39,11 @@ h2 {
   border-radius: 10px;
 }
 
-
 .speed-status {
   padding: 8px;
-  width: 90%;
+  width: 100%;
   background-color: #2d2d2d;
-  border-radius:0 0 10px 10px;
+  border-radius: 0 0 10px 10px;
   font-size: 0.9em;
 }
 
@@ -89,7 +58,8 @@ h2 {
   color: #888;
 }
 
-#currentSpeedStatus, #savedSpeedStatus {
+#currentSpeedStatus,
+#savedSpeedStatus {
   font-weight: bold;
 }
 
@@ -109,15 +79,18 @@ h2 {
   font-style: italic;
 }
 
-/* Mobile optimization */
-@media (max-width: 600px) {
-  .speed-status {
-    font-size: 0.85em;
-  }
-  
-  .status-line {
-    padding: 4px 0;
-  }
+.feedback {
+  padding: 8px 10px;
+  border-radius: 6px;
+  background-color: #2d3b2d;
+  color: #d7f5d7;
+  font-size: 0.8em;
+  line-height: 1.35;
+}
+
+.feedback.error {
+  background-color: #5a2424;
+  color: #ffd7d7;
 }
 
 .speed-buttons {
@@ -126,18 +99,20 @@ h2 {
   background-color: #080808;
   border-radius: 10px;
   overflow: hidden;
-  gap: 0; /* Remove gap between buttons */
+  gap: 0;
 }
 
-.speed-btn{
+.speed-btn {
   padding: 14px 10%;
   border: 1px solid rgb(39, 39, 39);
   background-color: #212121;
   color: white;
   cursor: pointer;
-  transition: all 0.2s;
-  margin: 0; /* Remove any margin */
-  border-radius: 0; /* Remove border radius from individual buttons */
+  transition: background-color 0.2s, transform 0.1s;
+  margin: 0;
+  border-radius: 0;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .speed-btn:hover {
@@ -148,19 +123,22 @@ h2 {
   background-color: #7f52c3;
 }
 
+/* The saved auto-speed preset is outlined rather than filled. */
+.speed-btn.auto-active {
+  box-shadow: inset 0 0 0 2px #ffcd82;
+}
+
 .speed-btn.stop-btn {
   background-color: #f44336;
   padding: 14px 8px;
   width: 100%;
   grid-column: span 3;
-  margin: 0; /* Ensure no margin */
-  border-radius: 0 0 10px 10px; /* Only round bottom corners */
+  margin: 0;
 }
 
 .speed-btn.stop-btn:hover {
   background-color: #d32f2f;
 }
-
 
 .auto-trigger-btn {
   width: 100%;
@@ -169,8 +147,8 @@ h2 {
   align-items: center;
   padding: 10px 15px;
   border: 1px solid #404040;
-  border-radius: 10px;
-
+  border-radius: 10px 10px 0 0;
+  background-color: #212121;
 }
 
 .auto-trigger-btn.active {
@@ -178,10 +156,10 @@ h2 {
   border-color: #c0c385;
 }
 
-.auto-trigger-btn.modified {
+/* Shown when the live speed differs from the saved auto-speed. */
+.auto-trigger-btn.different-speed {
   border: 2px solid #ffa600;
 }
-
 
 .auto-status {
   font-weight: bold;
@@ -189,7 +167,7 @@ h2 {
 }
 
 .auto-speed {
-  padding: 8px 8px;
+  padding: 8px;
   border-radius: 15px;
   color: #ffffff;
   background-color: rgb(62, 62, 62);
@@ -200,7 +178,6 @@ p {
   font-size: .8rem;
   margin: 0;
 }
-
 
 .toggles {
   display: flex;
@@ -226,6 +203,8 @@ p {
   align-items: center;
   gap: 10px;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 input[type="checkbox"] {
@@ -249,7 +228,7 @@ input[type="checkbox"] {
   color: white;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
 }
 
 #optionsButton:hover {
@@ -258,4 +237,28 @@ input[type="checkbox"] {
 
 button:active {
   transform: scale(0.98);
+}
+
+@media (max-width: 600px) {
+  body {
+    width: 100%;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  .speed-btn,
+  .auto-trigger-btn,
+  #optionsButton {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  .toggle-item {
+    padding: 5px 0;
+  }
+
+  input[type="checkbox"] {
+    width: 15px;
+    height: 15px;
+  }
 }

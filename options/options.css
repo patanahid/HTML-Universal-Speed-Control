@@ -187,7 +187,6 @@ button[data-speed]:hover {
 }
 
 .preset-button-item .edit-controls {
-  display: flex;
   justify-content: space-between;
   align-items: center;
   margin-top: 10px;
@@ -431,6 +430,7 @@ button:active {
   transform: scale(0.98);
 }
 
+/* Multi-line validation errors are joined with "\n" in options.js. */
 .status-message {
   position: fixed;
   bottom: 20px;
@@ -442,6 +442,31 @@ button:active {
   font-weight: bold;
   transition: all 0.3s;
   opacity: 0;
+  white-space: pre-line;
+  max-width: 90vw;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.note {
+  color: #aaa;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+
+.section.nested {
+  margin: 20px 0 0;
+  padding: 16px;
+  background-color: #232323;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  color: #ffcd82;
+  background: #111;
+  padding: 1px 4px;
+  border-radius: 3px;
 }
 
 .status-message.show {

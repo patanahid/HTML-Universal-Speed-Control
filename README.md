@@ -1,238 +1,177 @@
 # HTML Universal Speed Controller
+
 [Firefox Add-on Store link](https://addons.mozilla.org/en-US/firefox/addon/universal-speed-control/)
-A powerful browser extension that allows you to control the speed of HTML websites by manipulating various timing methods. This extension provides fine-grained control over website timing functions and includes features like auto-speed for specific sites and mobile optimizations.
+
+A Firefox extension that speeds up (or slows down) web pages by scaling the
+browser's timing primitives. Version 3.2 is a ground-up rewrite of the timing
+engine: everything is driven by one coherent virtual clock, settings are applied
+on every page load, and the injected script is no longer blocked by a page's
+Content Security Policy.
+
+## Requirements
+
+- **Firefox 128 or newer** (Desktop and Android). The MAIN execution world,
+  added in Firefox 128, is what lets the page script run without being blocked
+  by the page's CSP. `browser_specific_settings.gecko.strict_min_version`
+  enforces this.
+- Manifest V2. Chromium no longer loads MV2 extensions, so this is a
+  Firefox-only build.
 
 ## Features
 
-### Core Speed Control
-- Control website speed through a multiplier (0x to any value)
-- Affects multiple timing mechanisms:
+- Speed multiplier from **0** (all timing overrides off — native browser speed)
+  to **1000**, including fractional values.
+- Independent toggles for:
   - `setInterval`
   - `setTimeout`
   - `performance.now()`
   - `Date.now()`
   - `requestAnimationFrame`
-
-### Advanced Features
-- **Auto-Speed Sites**: Configure specific websites to automatically run at predefined speeds
-- **Mobile Optimizations**: Special handling for mobile devices with performance considerations
-- **Auto-Click Close**: Automatically closes elements with `.close-btn` class
-- **Granular Control**: Enable/disable individual timing method speed control
-- **Site-Specific Settings**: Different speed settings for different websites
-
-### Technical Features
-- Persistent settings storage
-- Background service worker for extension management
-- Content script injection for page manipulation
-- Cross-browser compatibility (Firefox 79.0+)
-- Mobile device detection and optimization
+- **Auto-speed sites**: store a speed per exact hostname and have it applied
+  automatically on every visit.
+- **Auto-click close**: clicks `.close-btn` elements, including ones that appear
+  dynamically or are initially hidden.
+- Configurable speed-step buttons and quick-add presets.
+- Optional notification when auto-speed activates.
+- Developer settings that are actually wired into the engine (see below).
 
 ## Architecture
 
-### Components
+| File | World | Job |
+|---|---|---|
+| `shared/settings.js` | all | One source of truth for defaults, validation and hostname parsing. No `browser.*` calls. |
+| `page/page.js` | **MAIN** (page) | The timing engine. Overrides `setInterval`, `setTimeout`, `clearInterval`, `performance.now`, `Date.now`, `requestAnimationFrame`; owns the auto-click observer. |
+| `content.js` | isolated | Reads settings from `browser.storage`, resolves auto-speed, and pushes the config to the page script with `window.postMessage`. |
+| `background.js` | extension | Seeds default settings and shows notifications. |
+| `popup/` | extension | Speed buttons, toggles, auto-speed control. |
+| `options/` | extension | Speed steps, presets, auto-speed site list, developer settings. |
 
-1. **Background Script** (`background.js`)
-   - Manages extension installation and initialization
-   - Handles default settings setup
-   - Processes notifications
-   - Manages tab updates and auto-speed checks
+### CSP-safe injection
 
-2. **Content Script** (`content.js`)
-   - Injects page script for timing manipulation
-   - Handles message communication
-   - Manages auto-speed site detection
-   - Implements mobile optimizations
+`manifest.json` declares `page/page.js` with `"world": "MAIN"` and
+`"run_at": "document_start"`. Firefox 128+ executes that script in the page's
+own world **before** any page script, and — unlike `window.eval` or an inline
+`<script>` tag — it is not blocked by the page's CSP.
 
-3. **Popup Interface**
-   - User interface for speed control
-   - Settings management
-   - Status display
+`content.js` also has a guarded fallback: if the MAIN-world script did not mark
+itself ready (older or non-conforming engines), it injects the same file with a
+`<script src=moz-extension://…>` tag. `page/page.js` is listed in
+`web_accessible_resources` for that case and guards against double installation.
 
-4. **Options Page**
-   - Advanced settings configuration
-   - Auto-speed site management
-   - Extension preferences
+The two worlds communicate through `window.postMessage` on a private channel.
+The page script rejects messages from any other window and ignores malformed or
+unrecognised payloads. Because MAIN-world code is by definition visible to the
+page, a hostile site can always undo these overrides; the channel check exists
+to stop accidental cross-talk and third-party frames, not to provide a security
+boundary.
 
-### Timing Method Overrides
+### The virtual clock
 
-#### 1. setInterval
-- Original function preservation
-- Speed-adjusted interval timing
-- Special handling for Google Ads timers
-- Batch processing for mobile devices
+One anchor (`{realPerf, realDate, virtPerf, virtDate, speed}`) drives both
+`performance.now()` and `Date.now()`:
 
-#### 2. setTimeout
-- Speed-adjusted timeout duration
-- Original function preservation
-- Mobile-optimized execution
-
-#### 3. performance.now()
-- Throttled updates for performance
-- Mobile-specific optimizations
-- Precision maintenance
-- Update interval control
-
-#### 4. Date.now()
-- Throttled updates
-- Mobile optimizations
-- Precision control
-- Update interval management
-
-#### 5. requestAnimationFrame
-- Frame rate control
-- Mobile-specific frame timing
-- Accumulator-based processing
-- Callback management
-
-## Mobile Optimizations
-
-### Configuration
-```javascript
-const MOBILE_CONFIG = {
-  UPDATE_INTERVAL: 32,    // ~30fps for better mobile performance
-  BATCH_SIZE: 5,         // Process timers in batches
-  THROTTLE_THRESHOLD: 100 // Minimum time between heavy operations
-};
+```
+virtual(x) = anchor.virtual + (x - anchor.real) * speed
 ```
 
-### Mobile-Specific Features
-- Reduced frame rate (30fps)
-- Batch processing of timers
-- Throttled heavy operations
-- Optimized update intervals
-- Memory usage optimization
+On a speed change the anchor is recomputed from the current virtual value, so
+the clock is **continuous** (no jumps) and both clock APIs stay in agreement.
+There is no throttling, no `Math.floor` on every read, and no device-specific
+cap — the old mobile code silently limited virtual time to about 3×.
 
-## Auto-Speed Sites
+`setInterval` calls are tracked so every live interval can be rescheduled when
+the speed or the `setInterval` toggle changes. `clearInterval` accepts any id
+ever returned for that interval, including ids from before a reschedule.
 
-### Configuration
-- Store site-specific speeds in browser storage
-- Automatic speed application on site visit
-- Notification system for speed changes
-- Manual override prevention
+`requestAnimationFrame` runs **one** callback per real frame and passes a
+coherent virtual timestamp. It never replays a callback with an identical
+timestamp, and it returns the browser's own handle, so the native
+`cancelAnimationFrame()` keeps working.
 
-*Click on the auto-speed button to add the current site and speed to the auto-triggering list*
+> **Known limitation:** `Date.now()` is overridden, but the `Date` constructor
+> is not. `new Date()` therefore still reads real wall-clock time while
+> `Date.now()` reads virtual time. Code that mixes the two can disagree; this is
+> inherent to overriding `Date.now` without replacing the whole `Date` object.
 
-### Behavior
-1. Site visit triggers speed check
-2. If site is in auto-speed list:
-   - Apply configured speed
-   - Show notification
-   - Update popup status
-3. If site is not in auto-speed list:
-   - Use default speed
-   - Update popup status
+### Developer settings
 
-## Auto-Click Close Feature
+| Setting | Effect |
+|---|---|
+| Tick Rate (Hz) | Grid size (`1000 / tickRate` ms) for Legacy Mode and Battery Saver. |
+| Use High Precision Timer | Return the raw virtual timestamp; otherwise round to microsecond resolution (sub-millisecond precision is always preserved). |
+| Legacy Mode | Floor virtual time to the tick grid and round timer delays up to a whole tick. |
+| Optimize for Battery Life | Quantise virtual timestamps to the tick grid. |
 
-### Functionality
-- Monitors DOM for new close buttons
-- Uses MutationObserver for efficiency
-- Handles dynamic content loading
-- Prevents duplicate clicks
-- Visibility check before clicking
+## Auto-speed sites
 
-### Implementation
-```javascript
-const observer = new MutationObserver((mutations) => {
-  mutations.forEach((mutation) => {
-    mutation.addedNodes.forEach((node) => {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        const closeButtons = node.querySelectorAll('.close-btn');
-        closeButtons.forEach(button => {
-          if (button && !button.dataset.autoClicked) {
-            button.dataset.autoClicked = 'true';
-            setTimeout(() => {
-              if (button && button.offsetParent !== null) {
-                button.click();
-              }
-            }, 100);
-          }
-        });
-      }
-    });
-  });
-});
+1. Open the extension's **Settings** page.
+2. In *Website Speed Settings*, add one `domain:speed` entry per line, or use
+   the quick-add presets.
+3. Click **Save All Changes**.
+
+Full URLs, ports and credentials are accepted and normalised to a bare
+hostname. Matching is **exact** (`window.location.hostname`), so include
+`www.` if the site uses it. Wildcards and subdomain patterns are not supported.
+All open tabs react immediately through `storage.onChanged`.
+
+You can also toggle auto-speed from the popup: clicking the auto-speed button
+saves the currently selected speed for the current host; clicking it again with
+the same selected speed removes the entry.
+
+## Auto-click close
+
+Enable the toggle in the popup. A single `MutationObserver` watches the whole
+document. Added nodes are checked both for descendants with `.close-btn` **and**
+for nodes that are themselves `.close-btn`. Buttons are remembered in a
+`WeakSet`, and visibility is retried with a native (unscaled) timer before
+clicking, so buttons that appear hidden are still handled. Disabling the toggle
+disconnects the observer.
+
+## Installation (development)
+
+1. Clone the repository.
+2. Open Firefox and go to `about:debugging`.
+3. Click **This Firefox** → **Load Temporary Add-on**.
+4. Select `manifest.json`.
+
+To build a distributable archive (`web-ext-config.cjs` excludes docs, tests and
+source artwork automatically):
+
+```sh
+npx web-ext build --source-dir . --artifacts-dir web-ext-artifacts
 ```
 
-## Installation
+To run the dependency-free engine tests:
 
-1. Clone the repository
-2. Open Firefox
-3. Navigate to `about:debugging`
-4. Click "This Firefox" on the left
-5. Click "Load Temporary Add-on"
-6. Select the `manifest.json` file
+```sh
+node tests/smoke.js
+```
 
-## Usage
+## Verification performed
 
-### Basic Speed Control
-1. Click the extension icon
-2. Use the speed slider to adjust website speed
-3. Enable/disable individual timing methods
-4. Changes apply immediately
+- `node --check` on every JavaScript file — clean.
+- ESLint (`no-undef`, `no-unused-vars`, `no-dupe-*`, …) — clean.
+- `web-ext lint` — **0 errors, 0 warnings, 0 notices**.
+- `node tests/smoke.js` — 17 behavioural checks on a fake clock.
 
-### Auto-Speed Sites
-1. Open extension options
-2. Navigate to Auto-Speed Sites section
-3. Add website domain and desired speed
-4. Save settings
+A full record of the defects found in v3.1 and how they were resolved is in
+[`ERROR_REPORT.md`](ERROR_REPORT.md).
 
-### Auto-Click Close
-1. Enable in extension options
-2. Extension will automatically click elements with `.close-btn` class
-3. Works on dynamically loaded content
+## Privacy / security
 
-## Technical Details
-
-### Message Handling
-- Background to Content Script
-- Popup to Content Script
-- Content Script to Page Script
-
-### Storage Management
-- Local storage for settings
-- Persistent across sessions
-- Automatic migration handling
-
-### Error Handling
-- Graceful degradation
-- Error logging
-- Recovery mechanisms
-
-## Browser Compatibility
-
-- Firefox 79.0 or higher
-- Uses WebExtensions API
-- Cross-browser compatible architecture
-
-## Performance Considerations
-
-### Mobile Devices
-- Reduced frame rates
-- Batch processing
-- Throttled operations
-- Memory optimization
-
-### Desktop
-- Full frame rate support
-- Direct timer processing
-- Maximum precision
-
-## Security
-
-- No data collection
-- Local storage only
-- No external connections
-- Secure message passing
+- No data collection, no network requests, no telemetry.
+  `data_collection_permissions.required` is `["none"]`.
+- All settings are stored locally with `browser.storage.local`.
+- All dynamically generated UI uses `textContent` / `createElement`; there is
+  no `innerHTML` anywhere in the extension.
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+1. Fork the repository.
+2. Create a feature branch.
+3. Commit your changes and push.
+4. Open a pull request.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT — see [LICENSE](LICENSE).
