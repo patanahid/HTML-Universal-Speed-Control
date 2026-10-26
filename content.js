@@ -1,478 +1,128 @@
-// Inject the script into the page to access window objects directly
-function pageScript() {
-  let speedConfig = {
-    speed: 1.0,
-    setInterval: true,
-    setTimeout: true,
-    performance: true,
-    dateNow: true,
-    requestAnimationFrame: false,
-    autoClickClose: false,
-    isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-  };
+/* Isolated-world content script: owns storage/settings and drives the
+ * MAIN-world timing engine (page/page.js) through window.postMessage.
+ *
+ * It never injects inline JavaScript. The MAIN-world script is declared in
+ * manifest.json, which makes it immune to the page's CSP (Firefox 128+).
+ * A guarded external-script fallback covers engines without MAIN-world
+ * support; it only runs when the MAIN-world script did not start.
+ */
+(function () {
+  'use strict';
 
-  // Mobile-specific configurations
-  const MOBILE_CONFIG = {
-    UPDATE_INTERVAL: 32, // ~30fps for better mobile performance
-    BATCH_SIZE: 5, // Process timers in batches on mobile
-    THROTTLE_THRESHOLD: 100 // Minimum time between heavy operations
-  };
+  var USC = globalThis.USC;
+  var DEFAULTS = USC.DEFAULTS;
+  var CHANNEL = USC.CHANNEL;
+  var targetOrigin = window.location.origin === 'null' ? '*' : window.location.origin;
 
-  // Store original functions
-  const originalClearInterval = window.clearInterval;
-  const originalClearTimeout = window.clearTimeout;
-  const originalSetInterval = window.setInterval;
-  const originalSetTimeout = window.setTimeout;
-  const originalPerformanceNow = window.performance.now.bind(window.performance);
-  const originalDateNow = Date.now;
-  const originalRequestAnimationFrame = window.requestAnimationFrame;
-  const emptyFunction = () => {};
+  var lastNotifiedSpeed = null;
 
-  // Timer management with mobile-specific optimizations
-  const timers = new Map();
-  let lastBatchProcess = 0;
-  let timerBatch = [];
+  /* ------------------------------------------------------- page script boot */
 
-  const processBatch = () => {
-    const currentTime = Date.now();
-    if (speedConfig.isMobile && currentTime - lastBatchProcess < MOBILE_CONFIG.THROTTLE_THRESHOLD) {
-      return; // Throttle processing on mobile
-    }
-    lastBatchProcess = currentTime;
-
-    // Process timers in batches on mobile
-    const batchSize = speedConfig.isMobile ? MOBILE_CONFIG.BATCH_SIZE : timers.size;
-    let processed = 0;
-
-    for (const [id, timer] of timers.entries()) {
-      if (processed >= batchSize) break;
-
-      originalClearInterval(timer.id);
-      if (timer.customTimerId) {
-        originalClearInterval(timer.customTimerId);
-      }
-
-      if (!timer.finished && speedConfig.speed > 0) {
-        const adjustedTimeout = speedConfig.setInterval ?
-          timer.timeout / speedConfig.speed :
-          timer.timeout;
-
-        // Use different intervals for mobile
-        const effectiveTimeout = speedConfig.isMobile ?
-          Math.max(adjustedTimeout, MOBILE_CONFIG.UPDATE_INTERVAL) :
-          adjustedTimeout;
-
-        const newTimerId = originalSetInterval(
-          timer.handler,
-          effectiveTimeout,
-          ...timer.args
-        );
-        timer.customTimerId = newTimerId;
-      } else {
-        timers.delete(id);
-      }
-      processed++;
-    }
-  };
-
-  const reloadTimers = () => {
-    if (speedConfig.isMobile) {
-      // Schedule batch processing for mobile
-      if (timerBatch.length === 0) {
-        timerBatch.push(setTimeout(processBatch, MOBILE_CONFIG.THROTTLE_THRESHOLD));
-      }
-    } else {
-      processBatch();
-    }
-  };
-
-  // Clear functions with improved cleanup
-  window.clearInterval = (id) => {
-    originalClearInterval(id);
-    const timer = timers.get(id);
-    if (timer) {
-      timer.finished = true;
-      if (timer.customTimerId) {
-        originalClearInterval(timer.customTimerId);
-      }
-      timers.delete(id);
-    }
-  };
-
-  window.clearTimeout = (id) => {
-    originalClearTimeout(id);
-    const timer = timers.get(id);
-    if (timer) {
-      timer.finished = true;
-      if (timer.customTimerId) {
-        originalClearTimeout(timer.customTimerId);
-      }
-      timers.delete(id);
-    }
-  };
-
-  // Set functions with optimized performance
-  window.setInterval = (handler, timeout = 0, ...args) => {
-    // Special handling for Google Ads timers
-    if (window.googletag && window.googletag.cmd) {
-      const stack = new Error().stack;
-      if (stack && stack.includes('googletag')) {
-        return originalSetInterval(handler, timeout / speedConfig.speed, ...args);
-      }
-    }
-
-    if (speedConfig.speed === 0) {
-      return originalSetInterval(handler, timeout, ...args);
-    }
-    const id = originalSetInterval(
-      handler,
-      speedConfig.setInterval ? timeout / speedConfig.speed : timeout,
-      ...args
-    );
-    timers.set(id, {
-      id,
-      handler,
-      timeout,
-      args,
-      finished: false,
-      customTimerId: null
-    });
-    return id;
-  };
-
-  window.setTimeout = (handler, timeout = 0, ...args) => {
-    if (speedConfig.speed === 0) {
-      return originalSetTimeout(handler, timeout, ...args);
-    }
-    return originalSetTimeout(
-      handler,
-      speedConfig.setTimeout ? timeout / speedConfig.speed : timeout,
-      ...args
-    );
-  };
-
-  // Performance.now override with improved precision
-  (function() {
-    let performanceNowValue = null;
-    let previousPerformanceNowValue = null;
-    let lastUpdateTime = 0;
-    const UPDATE_INTERVAL = speedConfig.isMobile ? MOBILE_CONFIG.UPDATE_INTERVAL : 16; // Use mobile or PC interval
-
-    window.performance.now = () => {
-      const currentTime = originalPerformanceNow();
-      if (speedConfig.speed === 0) return currentTime;
-
-      // Mobile-specific throttling
-      if (speedConfig.isMobile) {
-        if (currentTime - lastUpdateTime < MOBILE_CONFIG.UPDATE_INTERVAL) {
-          return performanceNowValue || currentTime;
-        }
-      } else if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
-        return performanceNowValue || currentTime;
-      }
-
-      if (performanceNowValue) {
-        const timeDiff = currentTime - previousPerformanceNowValue;
-        const speedMultiplier = speedConfig.performance ? speedConfig.speed : 1;
-        
-        // Limit time difference on mobile for smoother performance
-        performanceNowValue += speedConfig.isMobile ?
-          Math.min(timeDiff * speedMultiplier, MOBILE_CONFIG.THROTTLE_THRESHOLD) :
-          timeDiff * speedMultiplier;
-      } else {
-        performanceNowValue = currentTime;
-      }
-      
-      previousPerformanceNowValue = currentTime;
-      lastUpdateTime = currentTime;
-      return Math.floor(performanceNowValue);
-    };
-  })();
-
-  // Date.now override with throttling for mobile
-  (function() {
-    let dateNowValue = null;
-    let previousDateNowValue = null;
-    let lastUpdateTime = 0;
-    const UPDATE_INTERVAL = speedConfig.isMobile ? MOBILE_CONFIG.UPDATE_INTERVAL : 16; // Use mobile or PC interval
-
-    Date.now = () => {
-      const currentTime = originalDateNow();
-      if (speedConfig.speed === 0) return currentTime;
-
-      // Mobile-specific throttling
-      if (speedConfig.isMobile) {
-        if (currentTime - lastUpdateTime < MOBILE_CONFIG.UPDATE_INTERVAL) {
-          return dateNowValue || currentTime;
-        }
-      } else if (currentTime - lastUpdateTime < UPDATE_INTERVAL) {
-        return dateNowValue || currentTime;
-      }
-
-      if (dateNowValue) {
-        const timeDiff = currentTime - previousDateNowValue;
-        const speedMultiplier = speedConfig.dateNow ? speedConfig.speed : 1;
-        
-        // Limit time difference on mobile for smoother performance
-        dateNowValue += speedConfig.isMobile ?
-          Math.min(timeDiff * speedMultiplier, MOBILE_CONFIG.THROTTLE_THRESHOLD) :
-          timeDiff * speedMultiplier;
-      } else {
-        dateNowValue = currentTime;
-      }
-      
-      previousDateNowValue = currentTime;
-      lastUpdateTime = currentTime;
-      return Math.floor(dateNowValue);
-    };
-  })();
-
-  // RequestAnimationFrame override with mobile optimizations
-  (function() {
-    const callbackMap = new Map();
-    let lastTime = originalDateNow();
-    
-    const newRequestAnimationFrame = (callback) => {
-      return originalRequestAnimationFrame((timestamp) => {
-        const currentTime = originalDateNow();
-        if (speedConfig.speed === 0) {
-          callback(timestamp);
-          return;
-        }
-
-        const deltaTime = currentTime - lastTime;
-        lastTime = currentTime;
-
-        // Mobile-specific frame timing
-        const frameThreshold = speedConfig.isMobile ?
-          MOBILE_CONFIG.UPDATE_INTERVAL : // ~30fps for mobile
-          16.67; // 60fps for desktop
-
-        if (!callbackMap.has(callback)) {
-          callbackMap.set(callback, {
-            accumulator: 0,
-            lastProcessed: currentTime
-          });
-          callback(timestamp);
-        } else if (speedConfig.requestAnimationFrame) {
-          const state = callbackMap.get(callback);
-
-          // Throttle processing on mobile
-          if (speedConfig.isMobile &&
-              currentTime - state.lastProcessed < MOBILE_CONFIG.THROTTLE_THRESHOLD) {
-            window.requestAnimationFrame(callback);
-            return;
-          }
-
-          state.accumulator += deltaTime * speedConfig.speed;
-          state.lastProcessed = currentTime;
-
-          // Process accumulated time in chunks
-          while (state.accumulator >= frameThreshold) {
-            callback(timestamp);
-            state.accumulator -= frameThreshold;
-
-            // Break early on mobile if we've processed enough frames
-            if (speedConfig.isMobile &&
-                currentTime - state.lastProcessed >= MOBILE_CONFIG.UPDATE_INTERVAL) {
-              break;
-            }
-          }
-
-          if (state.accumulator > 0) {
-            window.requestAnimationFrame(callback);
-          } else {
-            callbackMap.delete(callback);
-          }
-        } else {
-          callback(timestamp);
-          callbackMap.delete(callback);
-        }
-      });
-    };
-    window.requestAnimationFrame = newRequestAnimationFrame;
-  })();
-
-  // Auto-click close buttons
-  function setupAutoClick() {
-    if (!speedConfig.autoClickClose) return;
-
-    // Create a MutationObserver to watch for new close buttons
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes.forEach((node) => {
-          if (node.nodeType === Node.ELEMENT_NODE) {
-            const closeButtons = node.querySelectorAll('.close-btn');
-            closeButtons.forEach(button => {
-              if (button && !button.dataset.autoClicked) {
-                button.dataset.autoClicked = 'true';
-                // Add a small delay to ensure the button is fully loaded
-                setTimeout(() => {
-                  if (button && button.offsetParent !== null) {
-                    button.click();
-                  }
-                }, 100);
-              }
-            });
-          }
-        });
-      });
-    });
-
-    // Only start observing after the page is loaded
-    if (document.readyState === 'complete') {
-      // Start observing the document with the configured parameters
-      observer.observe(document.body, {
-        childList: true,
-        subtree: true
-      });
-
-      // Also check for existing close buttons
-      document.querySelectorAll('.close-btn').forEach(button => {
-        if (button && !button.dataset.autoClicked) {
-          button.dataset.autoClicked = 'true';
-          setTimeout(() => {
-            if (button && button.offsetParent !== null) {
-              button.click();
-            }
-          }, 100);
-        }
-      });
-    } else {
-      // Wait for page load if not already loaded
-      window.addEventListener('load', () => {
-        observer.observe(document.body, {
-          childList: true,
-          subtree: true
-        });
-
-        document.querySelectorAll('.close-btn').forEach(button => {
-          if (button && !button.dataset.autoClicked) {
-            button.dataset.autoClicked = 'true';
-            setTimeout(() => {
-              if (button && button.offsetParent !== null) {
-                button.click();
-              }
-            }, 100);
-          }
-        });
-      });
-    }
-
-    return observer;
+  function pageScriptReady() {
+    var root = document.documentElement;
+    return !!(root && root.getAttribute('data-usc-page-ready') === '1');
   }
 
-  let autoClickObserver = null;
-
-  // Message handling for config updates
-  window.addEventListener("message", (e) => {
-    if (e.data.action === "updateSettings") {
-      const isMobile = speedConfig.isMobile; // Preserve mobile detection
-      speedConfig = {
-        ...e.data.settings,
-        isMobile // Keep mobile status
-      };
-      reloadTimers();
-
-      // Handle auto-click toggle
-      if (speedConfig.autoClickClose) {
-        if (!autoClickObserver) {
-          autoClickObserver = setupAutoClick();
-        }
-      } else if (autoClickObserver) {
-        autoClickObserver.disconnect();
-        autoClickObserver = null;
-      }
-    }
-  });
-}
-
-// Inject script into page with error handling
-try {
-  const script = document.createElement("script");
-  script.textContent = `(${pageScript.toString()})();`;
-  document.documentElement.appendChild(script);
-  script.remove(); // Clean up after injection
-} catch (error) {
-  console.error('Error injecting speed controller script:', error);
-}
-
-// Handle messages from popup/background with improved error handling
-browser.runtime.onMessage.addListener(async (message) => {
-  try {
-    if (message.action === "updateSettings") {
-      // Don't override auto-speed settings when manually changing speed
-      if (!message.isAutoSpeed) {
-        const { autoSpeedSites = {} } = await browser.storage.local.get('autoSpeedSites');
-        const currentHost = window.location.hostname;
-        if (currentHost in autoSpeedSites) {
-          return; // Don't apply manual speed if auto-speed is active
-        }
-      }
-      window.postMessage({
-        action: "updateSettings",
-        settings: message.settings
-      }, "*");
-    } else if (message.action === "checkAutoSpeed") {
-      await checkAutoSpeedSite();
-    }
-  } catch (error) {
-    console.error('Error handling message:', error);
+  function ensurePageScript() {
+    if (pageScriptReady()) return;
+    // Fallback for engines where "world": "MAIN" is unavailable.
+    var script = document.createElement('script');
+    script.src = browser.runtime.getURL('page/page.js');
+    script.async = false;
+    script.addEventListener('load', function () { script.remove(); });
+    script.addEventListener('error', function () { script.remove(); });
+    var parent = document.head || document.documentElement || document;
+    parent.appendChild(script);
   }
-});
 
-// Automatically check for auto-speed when script loads
-checkAutoSpeedSite();
+  function postConfig(config) {
+    window.postMessage({
+      channel: CHANNEL,
+      direction: 'content-to-page',
+      settings: config
+    }, targetOrigin);
+  }
 
-// Check if current site is in auto-speed list
-async function checkAutoSpeedSite() {
-  try {
-    const currentHost = window.location.hostname;
-    const { autoSpeedSites = {} } = await browser.storage.local.get('autoSpeedSites');
-    
-    if (currentHost in autoSpeedSites) {
-      const speed = autoSpeedSites[currentHost];
-      
-      // Show notification
+  /* ------------------------------------------------------------- settings */
+
+  function currentHost() {
+    try { return window.location.hostname || ''; } catch (e) { return ''; }
+  }
+
+  function hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
+  }
+
+  async function resolveSettings() {
+    var stored = await browser.storage.local.get(USC.clone(DEFAULTS));
+    var settings = USC.normalizeSettings(stored);
+    var host = currentHost();
+    var autoSpeed = null;
+
+    if (host && hasOwn(settings.autoSpeedSites, host)) {
+      autoSpeed = USC.clampSpeed(settings.autoSpeedSites[host]);
+      settings.speed = autoSpeed; // auto-speed wins over the global speed only
+    }
+    return { settings: settings, autoSpeed: autoSpeed, host: host };
+  }
+
+  /* Reads storage, pushes the resolved config to the page and (optionally)
+   * notifies about auto-speed. Never throws into a message handler.
+   *
+   * The popup derives its status from storage itself; broadcasting status from
+   * every tab would let an inactive tab overwrite the popup's domain. */
+  async function applySettings(options) {
+    var opts = options || {};
+    var resolved = await resolveSettings();
+
+    postConfig(USC.toPageConfig(resolved.settings));
+
+    if (resolved.autoSpeed !== null && !opts.silent && resolved.settings.showNotifications &&
+        resolved.autoSpeed !== lastNotifiedSpeed) {
+      lastNotifiedSpeed = resolved.autoSpeed;
       browser.runtime.sendMessage({
         action: 'showNotification',
         title: 'Auto-Speed Activated',
-        message: `Speed set to ${speed}x for ${currentHost}`
-      });
-
-      // Update popup with auto-speed status
-      browser.runtime.sendMessage({
-        action: 'updateAutoSpeedStatus',
-        status: {
-          active: true,
-          speed: speed,
-          domain: currentHost
-        }
-      });
-
-      // Apply speed settings
-      window.postMessage({
-        action: "updateSettings",
-        settings: {
-          speed: speed,
-          setInterval: true,
-          setTimeout: true,
-          performance: true,
-          dateNow: true,
-          requestAnimationFrame: false,
-          isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-        }
-      }, "*");
-    } else {
-      // Update popup that no auto-speed is active
-      browser.runtime.sendMessage({
-        action: 'updateAutoSpeedStatus',
-        status: {
-          active: false
-        }
-      });
+        message: 'Speed set to ' + resolved.autoSpeed + 'x for ' + resolved.host
+      }).catch(function () { /* background may be unavailable */ });
     }
-  } catch (error) {
-    console.error('Error checking auto-speed site:', error);
+    if (resolved.autoSpeed === null) lastNotifiedSpeed = null;
+
+    return { ok: true, speed: resolved.settings.speed, autoSpeed: resolved.autoSpeed };
   }
-}
+
+  /* --------------------------------------------------------- message input */
+
+  browser.runtime.onMessage.addListener(function (message) {
+    if (!message || typeof message !== 'object') return false;
+
+    switch (message.action) {
+      case 'updateSettings':
+        // Settings live in storage; the message is only a nudge. This keeps
+        // manual speed overrides suppressed on auto-speed sites while still
+        // applying every other setting immediately.
+        return applySettings({ silent: true });
+      case 'checkAutoSpeed':
+        return applySettings({ silent: true });
+      default:
+        return false; // not our message; do not claim an async response
+    }
+  });
+
+  /* Any tab reacts to settings changed anywhere (popup, options, another tab).
+   * Feature-detect the event so an engine without it cannot break startup —
+   * explicit updateSettings/checkAutoSpeed messages still cover those cases. */
+  if (browser.storage.onChanged && typeof browser.storage.onChanged.addListener === 'function') {
+    browser.storage.onChanged.addListener(function (changes, areaName) {
+      if (areaName !== 'local') return;
+      applySettings({ silent: true }).catch(function (error) {
+        console.error('[Speed Controller] failed to apply settings:', error);
+      });
+    });
+  }
+
+  ensurePageScript();
+  applySettings().catch(function (error) {
+    console.error('[Speed Controller] failed to initialise:', error);
+  });
+})();

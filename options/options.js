@@ -1,451 +1,321 @@
-// Get DOM elements
-const websitesList = document.getElementById('websitesList');
-const domainInput = document.getElementById('domainInput');
-const quickAddPresets = document.getElementById('quickAddPresets');
-const speedStepsList = document.getElementById('speedStepsList');
-const presetButtonsList = document.getElementById('presetButtonsList');
-const newSpeedStep = document.getElementById('newSpeedStep');
-const presetLabel = document.getElementById('presetLabel');
-const presetSpeed = document.getElementById('presetSpeed');
-const addSpeedStep = document.getElementById('addSpeedStep');
-const addPreset = document.getElementById('addPreset');
-const saveButton = document.getElementById('saveButton');
-const resetButton = document.getElementById('resetButton');
-const saveStatus = document.getElementById('saveStatus');
+(function () {
+  'use strict';
 
-// Default settings
-const DEFAULT_SPEED_STEPS = [2, 5, 10, 20, 50];
-const DEFAULT_PRESETS = [
-  { label: 'Normal', speed: 1 },
-  { label: 'Fast', speed: 5 },
-  { label: 'Very Fast', speed: 20 },
-  { label: 'Ultra Fast', speed: 50 }
-];
+  var USC = globalThis.USC;
 
-// Default developer settings
-const DEFAULT_DEVELOPER_SETTINGS = {
-  tickRate: 60,
-  useHighPrecisionTimer: false,
-  useLegacyMode: false,
-  optimizeForBattery: false
-};
+  var el = {};
+  var statusTimer = null;
 
-// Get developer settings elements
-const tickRateInput = document.getElementById('tickRate');
-const useHighPrecisionTimerToggle = document.getElementById('useHighPrecisionTimer');
-const useLegacyModeToggle = document.getElementById('useLegacyMode');
-const optimizeForBatteryToggle = document.getElementById('optimizeForBattery');
+  function $(id) { return document.getElementById(id); }
 
-// Load saved settings when page opens
-document.addEventListener('DOMContentLoaded', async () => {
-  // Load speed steps and presets
-  const {
-    speedSteps = DEFAULT_SPEED_STEPS,
-    presetButtons = DEFAULT_PRESETS,
-    autoSpeedSites = {},
-    developerSettings = DEFAULT_DEVELOPER_SETTINGS
-  } = await browser.storage.local.get(['speedSteps', 'presetButtons', 'autoSpeedSites', 'developerSettings']);
-  
-  // Load developer settings
-  tickRateInput.value = developerSettings.tickRate;
-  useHighPrecisionTimerToggle.checked = developerSettings.useHighPrecisionTimer;
-  useLegacyModeToggle.checked = developerSettings.useLegacyMode;
-  optimizeForBatteryToggle.checked = developerSettings.optimizeForBattery;
-  
-  renderSpeedSteps(speedSteps);
-  renderPresetButtons(presetButtons);
-  renderQuickAddPresets(presetButtons);
+  function element(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = String(text);
+    return node;
+  }
 
-  // Load website list
-  const sitesList = Object.entries(autoSpeedSites)
-    .map(([site, speed]) => `${site}:${speed}`)
-    .join('\n');
-  websitesList.value = sitesList;
-});
+  function showStatus(message, isError) {
+    el.saveStatus.textContent = message;
+    el.saveStatus.className = 'status-message show ' + (isError ? 'error' : 'success');
+    clearTimeout(statusTimer);
+    statusTimer = setTimeout(function () {
+      el.saveStatus.className = 'status-message';
+    }, 4000);
+  }
 
-// Render speed steps
-function renderSpeedSteps(steps) {
-  speedStepsList.innerHTML = steps
-    .map(step => `
-      <div class="speed-step">
-        <span>${step}x</span>
-        <button data-speed="${step}" title="Remove speed step">✕</button>
-      </div>
-    `).join('');
+  function readSettings() {
+    return browser.storage.local.get(USC.clone(USC.DEFAULTS))
+      .then(USC.normalizeSettings);
+  }
 
-  // Add click handlers for remove buttons
-  speedStepsList.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const speedToRemove = parseFloat(btn.dataset.speed);
-      const { speedSteps = DEFAULT_SPEED_STEPS } = await browser.storage.local.get('speedSteps');
-      const newSteps = speedSteps.filter(s => s !== speedToRemove).sort((a, b) => a - b);
-      
-      await browser.storage.local.set({ speedSteps: newSteps });
-      renderSpeedSteps(newSteps);
-      showStatus('Speed step removed successfully!');
+  /* ------------------------------------------------------------- rendering */
+
+  /* All rendering uses textContent / createElement — no innerHTML anywhere,
+   * so preset labels can never inject HTML into this privileged page. */
+  function renderSpeedSteps(steps) {
+    el.speedStepsList.textContent = '';
+    steps.forEach(function (step) {
+      var item = element('div', 'speed-step');
+      item.appendChild(element('span', null, step + 'x'));
+      var remove = element('button', null, '✕');
+      remove.type = 'button';
+      remove.title = 'Remove speed step';
+      remove.addEventListener('click', function () {
+        readSettings().then(function (settings) {
+          var next = settings.speedSteps.filter(function (s) { return s !== step; });
+          return browser.storage.local.set({ speedSteps: next }).then(function () {
+            renderSpeedSteps(next);
+            showStatus('Speed step removed successfully!');
+          });
+        }).catch(function (error) { showStatus('Error: ' + error.message, true); });
+      });
+      item.appendChild(remove);
+      el.speedStepsList.appendChild(item);
     });
-  });
-}
+  }
 
-// Render preset buttons in options
-function renderPresetButtons(presets) {
-  presetButtonsList.innerHTML = presets
-    .map(preset => `
-      <div class="preset-button-item" data-label="${preset.label}" data-speed="${preset.speed}">
-        <span>${preset.label} (${preset.speed}x)</span>
-        <div class="button-actions">
-          <button class="edit-btn" title="Edit preset">✎</button>
-          <button class="delete-btn" title="Remove preset">✕</button>
-        </div>
-        <div class="edit-controls">
-          <div class="edit-inputs">
-            <input type="text" class="edit-label" value="${preset.label}" placeholder="Button label">
-            <input type="number" class="edit-speed" value="${preset.speed}" placeholder="Speed value">
-          </div>
-          <div class="edit-actions">
-            <button class="save-edit">Save</button>
-            <button class="cancel-edit">Cancel</button>
-          </div>
-        </div>
-      </div>
-    `).join('');
+  function renderPresetButtons(presets) {
+    el.presetButtonsList.textContent = '';
 
-  // Add event handlers
-  presetButtonsList.querySelectorAll('.preset-button-item').forEach(item => {
-    const editBtn = item.querySelector('.edit-btn');
-    const deleteBtn = item.querySelector('.delete-btn');
-    const saveEditBtn = item.querySelector('.save-edit');
-    const cancelEditBtn = item.querySelector('.cancel-edit');
+    presets.forEach(function (preset, index) {
+      var item = element('div', 'preset-button-item');
+      item.appendChild(element('span', null, preset.label + ' (' + preset.speed + 'x)'));
 
-    editBtn.addEventListener('click', () => {
-      item.classList.add('editing');
+      var actions = element('div', 'button-actions');
+      var edit = element('button', 'edit-btn', '✎');
+      edit.type = 'button';
+      edit.title = 'Edit preset';
+      var remove = element('button', 'delete-btn', '✕');
+      remove.type = 'button';
+      remove.title = 'Remove preset';
+      actions.appendChild(edit);
+      actions.appendChild(remove);
+
+      var controls = element('div', 'edit-controls');
+      var inputs = element('div', 'edit-inputs');
+      var labelInput = element('input', 'edit-label');
+      labelInput.type = 'text';
+      labelInput.value = preset.label;
+      labelInput.placeholder = 'Button label';
+      var speedInput = element('input', 'edit-speed');
+      speedInput.type = 'number';
+      speedInput.min = '0';
+      speedInput.step = '0.1';
+      speedInput.value = String(preset.speed);
+      speedInput.placeholder = 'Speed value';
+      inputs.appendChild(labelInput);
+      inputs.appendChild(speedInput);
+
+      var editActions = element('div', 'edit-actions');
+      var save = element('button', 'save-edit', 'Save');
+      save.type = 'button';
+      var cancel = element('button', 'cancel-edit', 'Cancel');
+      cancel.type = 'button';
+      editActions.appendChild(save);
+      editActions.appendChild(cancel);
+      controls.appendChild(inputs);
+      controls.appendChild(editActions);
+
+      edit.addEventListener('click', function () { item.classList.add('editing'); });
+      cancel.addEventListener('click', function () { item.classList.remove('editing'); });
+
+      save.addEventListener('click', function () {
+        var label = labelInput.value.trim();
+        if (!label) { showStatus('Preset label is required', true); return; }
+        if (!USC.isValidSpeedString(speedInput.value)) {
+          showStatus('Speed must be a number from 0 to 1000', true);
+          return;
+        }
+        readSettings().then(function (settings) {
+          var next = settings.presetButtons.slice();
+          if (!next[index]) { showStatus('Preset no longer exists', true); return; }
+          next[index] = { label: label, speed: USC.clampSpeed(speedInput.value) };
+          return browser.storage.local.set({ presetButtons: next }).then(function () {
+            renderPresetButtons(next);
+            renderQuickAddPresets(next);
+            showStatus('Preset updated successfully!');
+          });
+        }).catch(function (error) { showStatus('Error: ' + error.message, true); });
+      });
+
+      remove.addEventListener('click', function () {
+        readSettings().then(function (settings) {
+          var next = settings.presetButtons.slice();
+          next.splice(index, 1);
+          return browser.storage.local.set({ presetButtons: next }).then(function () {
+            renderPresetButtons(next);
+            renderQuickAddPresets(next);
+            showStatus('Preset removed successfully!');
+          });
+        }).catch(function (error) { showStatus('Error: ' + error.message, true); });
+      });
+
+      item.appendChild(actions);
+      item.appendChild(controls);
+      el.presetButtonsList.appendChild(item);
     });
+  }
 
-    cancelEditBtn.addEventListener('click', () => {
-      item.classList.remove('editing');
+  function renderQuickAddPresets(presets) {
+    el.quickAddPresets.textContent = '';
+    presets.forEach(function (preset) {
+      var button = element('button', null, preset.label + ' (' + preset.speed + 'x)');
+      button.type = 'button';
+      button.addEventListener('click', function () {
+        var host = USC.normalizeHost(el.domainInput.value);
+        if (!host) { showStatus('Please enter a valid domain first', true); return; }
+        var existing = el.websitesList.value.trim();
+        var line = host + ':' + preset.speed;
+        el.websitesList.value = existing ? existing + '\n' + line : line;
+        el.domainInput.value = '';
+      });
+      el.quickAddPresets.appendChild(button);
     });
-
-    saveEditBtn.addEventListener('click', async () => {
-      const newLabel = item.querySelector('.edit-label').value.trim();
-      const newSpeed = parseFloat(item.querySelector('.edit-speed').value);
-
-      if (!newLabel) {
-        showStatus('Preset label is required', true);
-        return;
-      }
-
-      if (isNaN(newSpeed) || newSpeed < 0) {
-        showStatus('Invalid speed value', true);
-        return;
-      }
-
-      if (newSpeed > 1000) {
-        showStatus('Speed cannot exceed 1000x', true);
-        return;
-      }
-
-      const { presetButtons = DEFAULT_PRESETS } = await browser.storage.local.get('presetButtons');
-      const oldLabel = item.dataset.label;
-      const updatedPresets = presetButtons.map(p => 
-        p.label === oldLabel ? { label: newLabel, speed: newSpeed } : p
-      );
-
-      await browser.storage.local.set({ presetButtons: updatedPresets });
-      renderPresetButtons(updatedPresets);
-      renderQuickAddPresets(updatedPresets);
-      showStatus('Preset updated successfully!');
-    });
-
-    deleteBtn.addEventListener('click', async () => {
-      const { presetButtons = DEFAULT_PRESETS } = await browser.storage.local.get('presetButtons');
-      const labelToRemove = item.dataset.label;
-      const updatedPresets = presetButtons.filter(p => p.label !== labelToRemove);
-
-      await browser.storage.local.set({ presetButtons: updatedPresets });
-      renderPresetButtons(updatedPresets);
-      renderQuickAddPresets(updatedPresets);
-      showStatus('Preset removed successfully!');
-    });
-  });
-}
-
-// Render quick add presets
-function renderQuickAddPresets(presets) {
-  quickAddPresets.innerHTML = presets
-    .map(preset => `<button data-speed="${preset.speed}">${preset.label} (${preset.speed}x)</button>`)
-    .join('');
-
-  // Add click handlers for preset buttons
-  quickAddPresets.querySelectorAll('button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const domain = domainInput.value.trim();
-      const speed = btn.dataset.speed;
-
-      if (!domain) {
-        showStatus('Please enter a domain first', true);
-        return;
-      }
-
-      if (!isValidDomain(domain)) {
-        showStatus(`Invalid domain: ${domain}`, true);
-        return;
-      }
-
-      const currentList = websitesList.value.trim();
-      const newEntry = `${domain}:${speed}`;
-      websitesList.value = currentList ? `${currentList}\n${newEntry}` : newEntry;
-      domainInput.value = '';
-
-      // Visual feedback
-      btn.style.transform = 'scale(0.95)';
-      setTimeout(() => {
-        btn.style.transform = 'scale(1)';
-      }, 100);
-    });
-  });
-}
-
-// Add new speed step
-addSpeedStep.addEventListener('click', async () => {
-  const newSpeed = parseFloat(newSpeedStep.value);
-  
-  if (isNaN(newSpeed) || newSpeed < 1) {
-    showStatus('Please enter a valid speed (minimum 1)', true);
-    return;
   }
 
-  if (newSpeed > 1000) {
-    showStatus('Speed cannot exceed 1000x', true);
-    return;
+  /* ------------------------------------------------------ developer settings */
+
+  function fillDeveloperUI(settings) {
+    var dev = settings.developerSettings;
+    el.tickRate.value = String(dev.tickRate);
+    el.useHighPrecisionTimer.checked = dev.useHighPrecisionTimer;
+    el.useLegacyMode.checked = dev.useLegacyMode;
+    el.optimizeForBattery.checked = dev.optimizeForBattery;
+    el.showNotifications.checked = settings.showNotifications;
   }
 
-  const { speedSteps = DEFAULT_SPEED_STEPS } = await browser.storage.local.get('speedSteps');
-  
-  if (speedSteps.includes(newSpeed)) {
-    showStatus('This speed step already exists', true);
-    return;
-  }
-
-  const newSteps = [...speedSteps, newSpeed].sort((a, b) => a - b);
-  await browser.storage.local.set({ speedSteps: newSteps });
-  
-  renderSpeedSteps(newSteps);
-  newSpeedStep.value = '';
-  showStatus('New speed step added successfully!');
-});
-
-// Add new preset button
-addPreset.addEventListener('click', async () => {
-  const label = presetLabel.value.trim();
-  const speed = parseFloat(presetSpeed.value);
-
-  if (!label) {
-    showStatus('Preset label is required', true);
-    return;
-  }
-
-  if (isNaN(speed) || speed < 0) {
-    showStatus('Invalid speed value', true);
-    return;
-  }
-
-  if (speed > 1000) {
-    showStatus('Speed cannot exceed 1000x', true);
-    return;
-  }
-
-  const { presetButtons = DEFAULT_PRESETS } = await browser.storage.local.get('presetButtons');
-  
-  if (presetButtons.some(p => p.label === label)) {
-    showStatus('A preset with this label already exists', true);
-    return;
-  }
-
-  const newPresets = [...presetButtons, { label, speed }];
-  await browser.storage.local.set({ presetButtons: newPresets });
-  
-  renderPresetButtons(newPresets);
-  renderQuickAddPresets(newPresets);
-  presetLabel.value = '';
-  presetSpeed.value = '';
-  showStatus('New preset added successfully!');
-});
-
-// Show status message
-function showStatus(message, isError = false) {
-  saveStatus.textContent = message;
-  saveStatus.className = 'status-message show ' + (isError ? 'error' : 'success');
-  
-  setTimeout(() => {
-    saveStatus.className = 'status-message';
-  }, 3000);
-}
-
-// Validate domain
-function isValidDomain(domain) {
-  try {
-    new URL(`http://${domain}`);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-// Parse websites list
-function parseWebsitesList(text) {
-  const sites = {};
-  const errors = [];
-
-  text.split('\n')
-    .map(line => line.trim())
-    .filter(line => line !== '')
-    .forEach(line => {
-      const parts = line.split(':');
-      const domain = parts[0]?.trim();
-      const speed = parts[1]?.trim();
-
-      // Require both domain and speed
-      if (!domain || !speed) {
-        errors.push(`Invalid format (domain:speed required): ${line}`);
-        return;
-      }
-
-      if (!isValidDomain(domain)) {
-        errors.push(`Invalid domain: ${domain}`);
-        return;
-      }
-
-      const speedNum = parseFloat(speed);
-      if (isNaN(speedNum)) {
-        errors.push(`Invalid speed value for ${domain}: ${speed}`);
-        return;
-      }
-
-      if (speedNum < 0) {
-        errors.push(`Speed cannot be negative for ${domain}: ${speed}`);
-        return;
-      }
-
-      if (speedNum > 1000) {
-        errors.push(`Speed cannot exceed 1000x for ${domain}: ${speed}`);
-        return;
-      }
-
-      sites[domain] = speedNum;
-    });
-
-  return { sites, errors };
-}
-
-// Developer settings change handler
-function handleDeveloperSettingsChange() {
-  const tickRate = parseInt(tickRateInput.value);
-  if (isNaN(tickRate) || tickRate < 1 || tickRate > 1000) {
-    showStatus('Tick rate must be between 1 and 1000', true);
-    tickRateInput.value = DEFAULT_DEVELOPER_SETTINGS.tickRate;
-    return;
-  }
-
-  const developerSettings = {
-    tickRate: tickRate,
-    useHighPrecisionTimer: useHighPrecisionTimerToggle.checked,
-    useLegacyMode: useLegacyModeToggle.checked,
-    optimizeForBattery: optimizeForBatteryToggle.checked
-  };
-
-  return developerSettings;
-}
-
-// Add event listeners for developer settings
-[tickRateInput, useHighPrecisionTimerToggle, useLegacyModeToggle, optimizeForBatteryToggle].forEach(element => {
-  element.addEventListener('change', () => {
-    const settings = handleDeveloperSettingsChange();
-    if (settings) {
-      browser.storage.local.set({ developerSettings: settings });
+  function collectDeveloperSettings(notify) {
+    var raw = el.tickRate.value.trim();
+    if (!USC.isValidSpeedString(raw) || Number(raw) < 1 || Number(raw) > 1000) {
+      if (notify) showStatus('Tick rate must be a whole number between 1 and 1000', true);
+      return null;
     }
-  });
-});
+    return {
+      tickRate: Math.round(Number(raw)),
+      useHighPrecisionTimer: el.useHighPrecisionTimer.checked,
+      useLegacyMode: el.useLegacyMode.checked,
+      optimizeForBattery: el.optimizeForBattery.checked
+    };
+  }
 
-// Save button click handler
-saveButton.addEventListener('click', async () => {
-  try {
-    const { sites, errors } = parseWebsitesList(websitesList.value);
-    const developerSettings = handleDeveloperSettingsChange();
+  function saveDeveloperSettings() {
+    var dev = collectDeveloperSettings(true);
+    if (!dev) return;
+    browser.storage.local.set({ developerSettings: dev })
+      .catch(function (error) { showStatus('Error: ' + error.message, true); });
+  }
 
-    if (errors.length > 0) {
-      showStatus(`Errors found:\n${errors.join('\n')}`, true);
+  /* ---------------------------------------------------------------- actions */
+
+  function notifyTabs() {
+    return browser.tabs.query({}).then(function (tabs) {
+      return Promise.all(tabs.map(function (tab) {
+        return browser.tabs.sendMessage(tab.id, { action: 'checkAutoSpeed' })
+          .catch(function () { /* tab has no content script */ });
+      }));
+    });
+  }
+
+  function onAddSpeedStep() {
+    if (!USC.isValidSpeedString(el.newSpeedStep.value)) {
+      showStatus('Please enter a valid speed from 0 to 1000', true);
       return;
     }
-
-    if (!developerSettings) {
-      return; // Invalid developer settings
-    }
-
-    // Save to storage
-    await browser.storage.local.set({
-      autoSpeedSites: sites,
-      developerSettings: developerSettings
-    });
-    
-    // Show success message
-    showStatus('Settings saved successfully!');
-
-    // Notify all tabs to check if they should apply auto-speed
-    const tabs = await browser.tabs.query({});
-    for (const tab of tabs) {
-      try {
-        await browser.tabs.sendMessage(tab.id, { action: 'checkAutoSpeed' });
-      } catch (e) {
-        // Ignore errors for tabs that don't have our content script
+    var value = USC.clampSpeed(el.newSpeedStep.value);
+    readSettings().then(function (settings) {
+      if (settings.speedSteps.indexOf(value) !== -1) {
+        showStatus('This speed step already exists', true);
+        return;
       }
-    }
-  } catch (error) {
-    showStatus('Error saving settings: ' + error.message, true);
+      var next = USC.normalizeSpeedSteps(settings.speedSteps.concat([value]));
+      return browser.storage.local.set({ speedSteps: next }).then(function () {
+        renderSpeedSteps(next);
+        el.newSpeedStep.value = '';
+        showStatus('New speed step added successfully!');
+      });
+    }).catch(function (error) { showStatus('Error: ' + error.message, true); });
   }
-});
 
-// Reset button click handler
-resetButton.addEventListener('click', async () => {
-  try {
-    // Reset to defaults
-    await browser.storage.local.set({
-      speedSteps: DEFAULT_SPEED_STEPS,
-      presetButtons: DEFAULT_PRESETS,
-      autoSpeedSites: {},
-      developerSettings: DEFAULT_DEVELOPER_SETTINGS
-    });
-    
-    // Clear inputs
-    websitesList.value = '';
-    domainInput.value = '';
-    newSpeedStep.value = '';
-    presetLabel.value = '';
-    presetSpeed.value = '';
-    
-    // Reset developer settings
-    tickRateInput.value = DEFAULT_DEVELOPER_SETTINGS.tickRate;
-    useHighPrecisionTimerToggle.checked = DEFAULT_DEVELOPER_SETTINGS.useHighPrecisionTimer;
-    useLegacyModeToggle.checked = DEFAULT_DEVELOPER_SETTINGS.useLegacyMode;
-    optimizeForBatteryToggle.checked = DEFAULT_DEVELOPER_SETTINGS.optimizeForBattery;
-    
-    // Update UI
-    renderSpeedSteps(DEFAULT_SPEED_STEPS);
-    renderPresetButtons(DEFAULT_PRESETS);
-    renderQuickAddPresets(DEFAULT_PRESETS);
-    
-    // Show success message
-    showStatus('Settings reset successfully!');
-
-    // Notify all tabs
-    const tabs = await browser.tabs.query({});
-    for (const tab of tabs) {
-      try {
-        await browser.tabs.sendMessage(tab.id, { action: 'checkAutoSpeed' });
-      } catch (e) {
-        // Ignore errors for tabs that don't have our content script
+  function onAddPreset() {
+    var label = el.presetLabel.value.trim();
+    if (!label) { showStatus('Preset label is required', true); return; }
+    if (!USC.isValidSpeedString(el.presetSpeed.value)) {
+      showStatus('Speed must be a number from 0 to 1000', true);
+      return;
+    }
+    var speed = USC.clampSpeed(el.presetSpeed.value);
+    readSettings().then(function (settings) {
+      if (settings.presetButtons.some(function (p) { return p.label === label; })) {
+        showStatus('A preset with this label already exists', true);
+        return;
       }
-    }
-  } catch (error) {
-    showStatus('Error resetting settings: ' + error.message, true);
+      var next = settings.presetButtons.concat([{ label: label, speed: speed }]);
+      return browser.storage.local.set({ presetButtons: next }).then(function () {
+        renderPresetButtons(next);
+        renderQuickAddPresets(next);
+        el.presetLabel.value = '';
+        el.presetSpeed.value = '';
+        showStatus('New preset added successfully!');
+      });
+    }).catch(function (error) { showStatus('Error: ' + error.message, true); });
   }
-});
+
+  function onSave() {
+    var parsed = USC.parseWebsitesList(el.websitesList.value);
+    if (parsed.errors.length > 0) {
+      showStatus('Errors found:\n' + parsed.errors.join('\n'), true);
+      return;
+    }
+    var dev = collectDeveloperSettings(true);
+    if (!dev) return;
+
+    browser.storage.local.set({
+      autoSpeedSites: parsed.sites,
+      developerSettings: dev,
+      showNotifications: el.showNotifications.checked
+    }).then(function () {
+      el.websitesList.value = Object.keys(parsed.sites)
+        .map(function (host) { return host + ':' + parsed.sites[host]; })
+        .join('\n');
+      showStatus('Settings saved successfully!');
+      return notifyTabs();
+    }).catch(function (error) {
+      showStatus('Error saving settings: ' + error.message, true);
+    });
+  }
+
+  function onReset() {
+    var defaults = USC.clone(USC.DEFAULTS);
+    browser.storage.local.set(defaults).then(function () {
+      el.websitesList.value = '';
+      el.domainInput.value = '';
+      el.newSpeedStep.value = '';
+      el.presetLabel.value = '';
+      el.presetSpeed.value = '';
+      fillDeveloperUI(USC.normalizeSettings(defaults));
+      renderSpeedSteps(defaults.speedSteps);
+      renderPresetButtons(defaults.presetButtons);
+      renderQuickAddPresets(defaults.presetButtons);
+      showStatus('Settings reset successfully!');
+      return notifyTabs();
+    }).catch(function (error) {
+      showStatus('Error resetting settings: ' + error.message, true);
+    });
+  }
+
+  /* ------------------------------------------------------------------- boot */
+
+  document.addEventListener('DOMContentLoaded', function () {
+    [
+      'websitesList', 'domainInput', 'quickAddPresets', 'speedStepsList',
+      'presetButtonsList', 'newSpeedStep', 'presetLabel', 'presetSpeed',
+      'addSpeedStep', 'addPreset', 'saveButton', 'resetButton', 'saveStatus',
+      'tickRate', 'useHighPrecisionTimer', 'useLegacyMode', 'optimizeForBattery',
+      'showNotifications'
+    ].forEach(function (id) { el[id] = $(id); });
+
+    el.addSpeedStep.addEventListener('click', onAddSpeedStep);
+    el.addPreset.addEventListener('click', onAddPreset);
+    el.saveButton.addEventListener('click', onSave);
+    el.resetButton.addEventListener('click', onReset);
+    el.showNotifications.addEventListener('change', function () {
+      browser.storage.local.set({ showNotifications: el.showNotifications.checked })
+        .catch(function (error) { showStatus('Error: ' + error.message, true); });
+    });
+    [el.tickRate, el.useHighPrecisionTimer, el.useLegacyMode, el.optimizeForBattery]
+      .forEach(function (input) { input.addEventListener('change', saveDeveloperSettings); });
+
+    readSettings().then(function (settings) {
+      fillDeveloperUI(settings);
+      renderSpeedSteps(settings.speedSteps);
+      renderPresetButtons(settings.presetButtons);
+      renderQuickAddPresets(settings.presetButtons);
+      el.websitesList.value = Object.keys(settings.autoSpeedSites)
+        .map(function (host) { return host + ':' + settings.autoSpeedSites[host]; })
+        .join('\n');
+    }).catch(function (error) {
+      showStatus('Could not load settings: ' + error.message, true);
+    });
+  });
+})();

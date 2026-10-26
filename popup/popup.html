@@ -3,8 +3,9 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="popup.css">
+  <title>Speed Controller</title>
 </head>
 
 <body>
@@ -12,82 +13,56 @@
     <h2>Speed Controller</h2>
 
     <div id="autoSpeedButton" class="auto-speed-button">
-      <button class="speed-btn auto-trigger-btn">
-        <span class="auto-status">Auto-Speed: Off</span>
+      <button type="button" class="speed-btn auto-trigger-btn">
+        <span class="auto-status">Auto: Off</span>
         <span class="auto-speed"></span>
       </button>
-      <center>
-        <div class="speed-status">
-          <div class="status-line">
-            <span class="status-label">Current:</span>
-            <span id="currentSpeedStatus">1x</span>
-          </div>
-          <div class="status-line">
-            <span class="status-label">Saved:</span>
-            <span id="savedSpeedStatus">None</span>
-          </div>
-          <div class="status-hint">Click auto-speed to save current speed</div>
+      <div class="speed-status center">
+        <div class="status-line">
+          <span class="status-label">Current:</span>
+          <span id="currentSpeedStatus">1x</span>
         </div>
-      </center>
+        <div class="status-line">
+          <span class="status-label">Saved:</span>
+          <span id="savedSpeedStatus">None</span>
+        </div>
+        <div class="status-hint">Click auto-speed to save current speed</div>
+      </div>
     </div>
 
-    <div class="speed-buttons">
-      <button class="speed-btn" data-speed="1">Normal</button>
-      <button class="speed-btn" data-speed="2">2x</button>
-      <button class="speed-btn" data-speed="5">5x</button>
-      <button class="speed-btn" data-speed="10">10x</button>
-      <button class="speed-btn" data-speed="20">20x</button>
-      <button class="speed-btn" data-speed="50">50x</button>
-      <button class="speed-btn stop-btn" data-speed="0">Stop</button>
-    </div>
-    <center>
-      <p>You can add or remove presets in the settings.</p>
-    </center>
+    <div id="feedback" class="feedback" hidden></div>
+
+    <div id="speedButtons" class="speed-buttons"></div>
+    <p class="center">You can add or remove presets in the settings.</p>
 
     <div class="toggles">
       <div class="toggle-item">
-        <label>
-          <input type="checkbox" id="setIntervalToggle" checked>
-          setInterval
-        </label>
+        <label><input type="checkbox" id="setIntervalToggle" checked> setInterval</label>
       </div>
       <div class="toggle-item">
-        <label>
-          <input type="checkbox" id="setTimeoutToggle" checked>
-          setTimeout
-        </label>
+        <label><input type="checkbox" id="setTimeoutToggle" checked> setTimeout</label>
       </div>
       <div class="toggle-item">
-        <label>
-          <input type="checkbox" id="performanceToggle" checked>
-          performance
-        </label>
+        <label><input type="checkbox" id="performanceToggle" checked> performance</label>
       </div>
       <div class="toggle-item">
-        <label>
-          <input type="checkbox" id="dateNowToggle" checked>
-          Date.now
-        </label>
+        <label><input type="checkbox" id="dateNowToggle" checked> Date.now</label>
       </div>
       <div class="toggle-item">
-        <label>
-          <input type="checkbox" id="requestAnimationFrameToggle">
-          requestAnimationFrame
-        </label>
+        <label><input type="checkbox" id="requestAnimationFrameToggle"> requestAnimationFrame</label>
       </div>
       <div class="toggle-item">
-        <label>
-          <input type="checkbox" id="autoClickToggle">
-          Auto-click close buttons
-        </label>
+        <label><input type="checkbox" id="autoClickToggle"> Auto-click close buttons</label>
       </div>
     </div>
 
     <p>Add custom domains in the settings.</p>
     <div class="buttons">
-      <button id="optionsButton">Settings</button>
+      <button type="button" id="optionsButton">Settings</button>
     </div>
   </div>
+
+  <script src="../shared/settings.js"></script>
   <script src="popup.js"></script>
 </body>
 

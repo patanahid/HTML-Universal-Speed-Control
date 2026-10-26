@@ -1,51 +1,47 @@
-// Initialize default settings when extension is installed
-browser.runtime.onInstalled.addListener(async () => {
-  const defaultSettings = {
-    speed: 2,
-    setInterval: true,
-    setTimeout: true,
-    performance: true,
-    dateNow: true,
-    requestAnimationFrame: false,
-    autoSpeedSites: []
-  };
+/* Background event page: default settings and notifications only.
+ * All timing work happens in content.js / page/page.js.
+ */
+(function () {
+  'use strict';
 
-  // Check if settings already exist
-  const existingSettings = await browser.storage.local.get(Object.keys(defaultSettings));
-  
-  // Only set defaults for missing settings
-  const newSettings = {};
-  for (const [key, value] of Object.entries(defaultSettings)) {
-    if (existingSettings[key] === undefined) {
-      newSettings[key] = value;
+  var USC = globalThis.USC;
+
+  async function ensureDefaults() {
+    var defaults = USC.clone(USC.DEFAULTS);
+    var existing = await browser.storage.local.get(Object.keys(defaults));
+    var missing = {};
+    Object.keys(defaults).forEach(function (key) {
+      if (existing[key] === undefined) missing[key] = defaults[key];
+    });
+    if (Object.keys(missing).length > 0) {
+      await browser.storage.local.set(missing);
     }
   }
 
-  if (Object.keys(newSettings).length > 0) {
-    await browser.storage.local.set(newSettings);
-  }
-});
+  browser.runtime.onInstalled.addListener(function () {
+    ensureDefaults().catch(function (error) {
+      console.error('[Speed Controller] could not initialise defaults:', error);
+    });
+  });
+  browser.runtime.onStartup.addListener(function () {
+    ensureDefaults().catch(function (error) {
+      console.error('[Speed Controller] could not initialise defaults:', error);
+    });
+  });
 
-// Listen for messages from content script
-browser.runtime.onMessage.addListener((message, sender) => {
-  if (message.action === 'showNotification') {
+  browser.runtime.onMessage.addListener(function (message) {
+    if (!message || message.action !== 'showNotification') return false;
+
+    // "notifications" is declared in manifest.json; icon-48.png is a real file.
     browser.notifications.create({
       type: 'basic',
-      iconUrl: browser.runtime.getURL('icons/icon-48.svg'),
-      title: message.title,
-      message: message.message
+      iconUrl: browser.runtime.getURL('icons/icon-48.png'),
+      title: String(message.title || 'Speed Controller'),
+      message: String(message.message || '')
+    }).catch(function (error) {
+      console.error('[Speed Controller] notification failed:', error);
     });
-  }
-  return true;
-});
-
-// Listen for tab updates to check if new page should have auto-speed
-browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tab.url) {
-    try {
-      await browser.tabs.sendMessage(tabId, { action: 'checkAutoSpeed' });
-    } catch (e) {
-      // Ignore errors for tabs that don't have our content script
-    }
-  }
-});
+    // No `return true`: nothing is going to call sendResponse().
+    return undefined;
+  });
+})();
