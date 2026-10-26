@@ -2,8 +2,10 @@
  * Keeps docs, tests and old artwork out of the packaged XPI. */
 module.exports = {
   ignoreFiles: [
+    'tests',
     'tests/**',
     'web-ext-config.cjs',
+    'web-ext-artifacts',
     'web-ext-artifacts/**',
     'ERROR_REPORT.md',
     'README.md',

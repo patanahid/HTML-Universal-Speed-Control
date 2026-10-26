@@ -1,5 +1,8 @@
-# Build output from `web-ext build` / `web-ext sign`
-web-ext-artifacts/
+# Build output from `web-ext build` / `web-ext sign`.
+# Only the current release archive is versioned so it is always downloadable;
+# everything else in this folder is a local, disposable build artifact.
+web-ext-artifacts/*
+!web-ext-artifacts/html_universal_speed_controller-3.2.zip
 
 # Local tooling
 node_modules/

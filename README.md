@@ -141,6 +141,24 @@ source artwork automatically):
 npx web-ext build --source-dir . --artifacts-dir web-ext-artifacts
 ```
 
+### Publishing to addons.mozilla.org
+
+The command above produces the unsigned archive you upload to AMO:
+
+```
+web-ext-artifacts/html_universal_speed_controller-3.2.zip
+```
+
+1. Run `npx web-ext lint --source-dir .` first — it must report 0 errors and 0
+   warnings.
+2. Go to the [Add-on Developer Hub](https://addons.mozilla.org/developers/)
+   → **Submit a New Add-on** → upload that `.zip` as the add-on file.
+3. AMO validates and signs it, and gives you back the `.xpi` that users install.
+
+Upload the **unsigned** `web-ext build` zip, not one of the old
+`html_universal_speed_controller-3.1.zip` style archives. Signing directly with
+`web-ext sign` is also possible but needs AMO API credentials.
+
 To run the dependency-free engine tests:
 
 ```sh
